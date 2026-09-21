@@ -1332,8 +1332,9 @@ func _select_pass_target(passer: DinoPlayer, input_dir: Vector2) -> DinoPlayer:
 
     var best: DinoPlayer = candidates[0]
     var best_score := -10000.0
-    for candidate in candidates:
-        var to_candidate := candidate.global_position - passer.global_position
+    for candidate_value in candidates:
+        var candidate := candidate_value as DinoPlayer
+        var to_candidate: Vector3 = candidate.global_position - passer.global_position
         to_candidate.y = 0.0
         var distance := maxf(0.01, to_candidate.length())
         var direction_score := 0.0
@@ -1362,8 +1363,9 @@ func _best_lob_target(passer: DinoPlayer, input_dir: Vector2 = Vector2.ZERO) -> 
     var hoop := _attack_hoop(passer.team_id)
     var best: DinoPlayer = null
     var best_score := -999.0
-    for candidate in candidates:
-        var to_candidate := candidate.global_position - passer.global_position
+    for candidate_value in candidates:
+        var candidate := candidate_value as DinoPlayer
+        var to_candidate: Vector3 = candidate.global_position - passer.global_position
         to_candidate.y = 0.0
         var hoop_distance := _flat_distance(candidate.global_position, hoop)
         var score := (GameTuning.ALLEY_TARGET_MAX_DISTANCE - hoop_distance) * 0.75
@@ -1611,7 +1613,8 @@ func _update_ai(delta: float) -> void:
         else:
             player.set_ai_target(_spacing_anchor(player.team_id, player.roster_index), false)
 
-    for defender in defense:
+    for defender_value in defense:
+        var defender := defender_value as DinoPlayer
         if defender == controlled_player:
             continue
         var assignment := offense[defender.roster_index % offense.size()] as DinoPlayer
@@ -2856,7 +2859,10 @@ func _spacing_anchor(team: int, index: int) -> Vector3:
 
     # Tidefang identity: players alternate weak side positions, teaching defensive rotation.
     if match_number == 4 and team == TEAM_AWAY:
-        var tide_phase := floor(float(Time.get_ticks_msec()) / (GameTuning.TIDE_WEAKSIDE_SWING_SECONDS * 1000.0))
+        var tide_phase: float = floor(
+            float(Time.get_ticks_msec())
+            / (GameTuning.TIDE_WEAKSIDE_SWING_SECONDS * 1000.0)
+        )
         var side := -1.0 if int(tide_phase + index) % 2 == 0 else 1.0
         if index == 1:
             anchor.x = 5.1 * side
@@ -3043,7 +3049,8 @@ func _give_ball_to(player: DinoPlayer, reason: String) -> void:
 func _nearest_player_to_ball(max_distance: float) -> DinoPlayer:
     var result: DinoPlayer = null
     var best_score := 999.0
-    for player in all_players:
+    for player_value in all_players:
+        var player := player_value as DinoPlayer
         var radius := max_distance
         if player.data != null and player.data.instinct_name == "Muralha Fóssil":
             radius += 0.22
@@ -3067,7 +3074,8 @@ func _closest_opponent_to_ball(team: int, max_distance: float) -> DinoPlayer:
         return null
     var result: DinoPlayer = null
     var best := max_distance
-    for player in _team_players(1 - team):
+    for player_value in _team_players(1 - team):
+        var player := player_value as DinoPlayer
         var distance := player.global_position.distance_to(ball.global_position)
         if distance <= best:
             best = distance
@@ -3171,7 +3179,8 @@ func _start_possession(team: int, new_clock: float = GameTuning.SHOT_CLOCK) -> v
 func _closest_home_defender_to(target: DinoPlayer) -> DinoPlayer:
     var best := home_players[0] as DinoPlayer
     var best_distance := 999.0
-    for player in home_players:
+    for player_value in home_players:
+        var player := player_value as DinoPlayer
         var distance := player.global_position.distance_to(target.global_position)
         if distance < best_distance:
             best_distance = distance
@@ -3995,7 +4004,8 @@ func _difficulty_ai_multiplier() -> float:
 
 func _build_three_point_lines() -> void:
     var line_color := Color("f7fbff") if high_contrast else Color(0.76, 0.82, 0.9, 0.88)
-    for hoop_z in [-12.55, 12.55]:
+    for hoop_z_value in [-12.55, 12.55]:
+        var hoop_z := float(hoop_z_value)
         var direction := 1.0 if hoop_z < 0.0 else -1.0
         for i in range(25):
             var t := lerpf(-1.02, 1.02, float(i) / 24.0)
