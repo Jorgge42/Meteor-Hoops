@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+<rect width="1280" height="720" fill="#061a17"/>
+<circle cx="1080" cy="110" r="205" fill="#14b8a6" opacity="0.20"/>
+<path d="M80 585 H1200" stroke="#5eead4" stroke-width="8" opacity="0.28"/>
+<g fill="#2dd4bf" opacity="0.28"><rect x="180" y="480" width="90" height="105"/><rect x="320" y="410" width="90" height="175"/><rect x="460" y="500" width="90" height="85"/><rect x="600" y="350" width="90" height="235"/><rect x="740" y="455" width="90" height="130"/></g>
+<text x="80" y="100" font-family="sans-serif" font-size="28" fill="#5eead4">CAPÍTULO 08 • FORA DA CURVA</text>
+<text x="80" y="155" font-family="sans-serif" font-size="19" fill="#71839f">PÁGINA 2</text>
+<text x="80" y="245" font-family="sans-serif" font-size="37" font-weight="700" fill="#f5fbff">UM BOM MODELO NÃO TEM VERGONHA DE ESTAR ERRADO.</text>
+<text x="80" y="350" font-family="sans-serif" font-size="26" fill="#c8d9e8">Axiom salva a partida como nova evidência. “Vocês não derrotaram os</text>
+<text x="80" y="392" font-family="sans-serif" font-size="26" fill="#c8d9e8">dados. Derrotaram nossa certeza.” Luma responde que toda leitura justa</text>
+<text x="80" y="434" font-family="sans-serif" font-size="26" fill="#c8d9e8">deve mostrar ao jogador a chance de escrever uma resposta nova.</text>
+<text x="1120" y="660" font-family="sans-serif" font-size="24" fill="#5eead4">☄ 08</text>
+</svg>

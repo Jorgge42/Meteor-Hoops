@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+<rect width="1280" height="720" fill="#061a17"/>
+<circle cx="1080" cy="110" r="205" fill="#f59e0b" opacity="0.18"/>
+<path d="M90 555 L250 470 L400 535 L555 390 L710 510 L860 355 L1015 490 L1180 300" fill="none" stroke="#2dd4bf" stroke-width="7" opacity="0.36"/>
+<path d="M545 350 L625 430 M625 350 L545 430" stroke="#fbbf24" stroke-width="15" opacity="0.85"/>
+<text x="80" y="100" font-family="sans-serif" font-size="28" fill="#5eead4">CAPÍTULO 08 • FORA DA CURVA</text>
+<text x="80" y="155" font-family="sans-serif" font-size="19" fill="#71839f">PÁGINA 1</text>
+<text x="80" y="245" font-family="sans-serif" font-size="39" font-weight="700" fill="#f5fbff">O ÚLTIMO CÁLCULO TERMINA EM ERRO.</text>
+<text x="80" y="350" font-family="sans-serif" font-size="26" fill="#c8d9e8">O placar marca vitória. A projeção previa passe, mas Kiro recusou o</text>
+<text x="80" y="392" font-family="sans-serif" font-size="26" fill="#c8d9e8">bloqueio e atacou o lado vazio. Não foi sorte: ele viu o modelo,</text>
+<text x="80" y="434" font-family="sans-serif" font-size="26" fill="#c8d9e8">entendeu sua resposta e criou uma terceira opção.</text>
+<text x="1120" y="660" font-family="sans-serif" font-size="24" fill="#fbbf24">☄ 08</text>
+</svg>

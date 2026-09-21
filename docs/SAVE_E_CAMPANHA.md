@@ -1,10 +1,10 @@
-# Save e campanha — v0.9
+# Save e campanha — v1.0
 
 ## Arquivo
 `user://meteor_hoops_save.json`
 
 ## Schema atual
-Versão **6**.
+Versão **7**.
 
 ## Estado persistente
 - introdução e capítulos vistos;
@@ -19,12 +19,13 @@ Versão **6**.
 - pontos de evolução e upgrades escolhidos;
 - temporada com PTS/AST/REB/STL/BLK, FG, 3PT, FT, faltas e turnovers;
 - perfil adaptativo local com contagens agregadas de ações de gameplay.
+- perfil de sequências com transições agregadas, sem trajetória, texto livre ou dado pessoal.
 
 ## Migração
-O carregamento completa campos ausentes em saves antigos. A migração v6 mantém a compensação de pontos de evolução da v5, acrescenta turnovers às linhas de temporada e cria um perfil adaptativo vazio quando necessário. Dados adaptativos malformados são descartados com segurança.
+O carregamento completa campos ausentes em saves antigos. A migração v7 preserva todas as garantias da v6 e cria `sequence_profile` quando necessário. Estruturas malformadas de frequência ou sequência são substituídas por dicionários vazios, e pesos são limitados novamente ao entrar no modelo.
 
 ## Rota implementada
-- Jogos 1–7 jogáveis.
-- Jogos 8–10 visíveis no mapa e ainda não jogáveis.
+- Jogos 1–8 jogáveis.
+- Jogos 9–10 visíveis no mapa e ainda não jogáveis.
 
-Ao vencer o Jogo 7, o nó 8 é desbloqueado narrativamente, embora Fossil Tech ainda seja conteúdo em desenvolvimento.
+Ao vencer o Jogo 8, a semifinal contra a Apex Dominion é desbloqueada como o próximo nó narrativo.
