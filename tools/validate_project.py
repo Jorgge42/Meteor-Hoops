@@ -22,12 +22,12 @@ def validate_metadata(failures: list[str]) -> None:
     version = (ROOT / "VERSION.txt").read_text(encoding="utf-8").strip()
     project = (ROOT / "project.godot").read_text(encoding="utf-8")
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    if version != "v0.9":
+    if version != "v1.0":
         fail(f"VERSION.txt inesperado: {version}", failures)
-    if "Prototype v0.9" not in project:
-        fail("project.godot não anuncia a v0.9", failures)
-    if "Prototype v0.9" not in readme:
-        fail("README não anuncia a v0.9", failures)
+    if "Prototype v1.0" not in project:
+        fail("project.godot não anuncia a v1.0", failures)
+    if "Prototype v1.0" not in readme:
+        fail("README não anuncia a v1.0", failures)
 
 
 def validate_resource_references(failures: list[str]) -> None:
@@ -49,6 +49,8 @@ def validate_story_svg(failures: list[str]) -> None:
     story_roots = [
         ROOT / "content/story/comics/chapter_07",
         ROOT / "content/story/comics/chapter_07_post",
+        ROOT / "content/story/comics/chapter_08",
+        ROOT / "content/story/comics/chapter_08_post",
     ]
     for story_root in story_roots:
         pages = sorted(story_root.glob("page_*.svg"))
@@ -67,8 +69,12 @@ def validate_required_files(failures: list[str]) -> None:
         "systems/ai/passing_lane_analyzer.gd",
         "systems/ai/nightclaw_utility_ai.gd",
         "systems/ai/fair_match_director.gd",
+        "systems/ai/sequence_prediction_model.gd",
+        "systems/ai/fossil_tech_predictive_ai.gd",
         "data/chapter_07.tres",
         "data/chapter_07_post.tres",
+        "data/chapter_08.tres",
+        "data/chapter_08_post.tres",
         "tests/test_ai_contracts.gd",
     ]
     for relative in required:
@@ -86,7 +92,7 @@ def main() -> int:
         for message in failures:
             print(f"ERROR: {message}", file=sys.stderr)
         return 1
-    print("Static validation passed: metadata, resources, SVGs and v0.9 files.")
+    print("Static validation passed: metadata, resources, SVGs and v1.0 files.")
     return 0
 
 

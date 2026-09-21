@@ -52,7 +52,7 @@ func _show_main_menu() -> void:
     vbox.add_child(title)
 
     var sub := Label.new()
-    sub.text = "ROTA DO METEORO  •  vertical slice v0.9"
+    sub.text = "ROTA DO METEORO  •  vertical slice v1.0"
     sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     sub.modulate = Color(0.75, 0.82, 0.9)
     vbox.add_child(sub)
@@ -67,7 +67,7 @@ func _show_main_menu() -> void:
     vbox.add_child(_menu_button("TEMPORADA", _show_season))
     vbox.add_child(_menu_button("CONFIGURAÇÕES", _show_settings))
     vbox.add_child(_menu_button("CRÉDITOS", func():
-        _set_status("Godot Engine • MIT\nMETEOR HOOPS: ROTA DO METEORO — protótipo técnico v0.9.\nHQs SVG atuais são placeholders e podem ser substituídas pelas artes finais.")
+        _set_status("Godot Engine • MIT\nMETEOR HOOPS: ROTA DO METEORO — protótipo técnico v1.0.\nHQs SVG atuais são placeholders e podem ser substituídas pelas artes finais.")
     ))
 
     var progress := Label.new()
@@ -84,8 +84,10 @@ func _show_main_menu() -> void:
     vbox.add_child(status_label)
 
     var completed: Array = profile.get("completed_matches", [])
-    if completed.has("match_07"):
-        _set_status("Você venceu a leitura da Nightclaw. Fossil Tech é o próximo nó da Rota — ainda em desenvolvimento nesta build.")
+    if completed.has("match_08"):
+        _set_status("Você quebrou o modelo da Fossil Tech. A semifinal contra a Apex Dominion é o próximo nó da Rota.")
+    elif completed.has("match_07"):
+        _set_status("Fossil Tech está liberada. Varie sequências, use ações-isca e obrigue o modelo a errar.")
     elif completed.has("match_06"):
         _set_status("Nightclaw Academy está liberada. Varie o ataque, use fintas e proteja cada linha de passe.")
     elif completed.has("match_05"):
@@ -282,7 +284,7 @@ func _show_campaign_map() -> void:
     var legend := Label.new()
     legend.position = Vector2(315, 660)
     legend.size = Vector2(860, 30)
-    legend.text = "✓ concluído   •   ☄ disponível   •   🔒 bloqueado   •   Jogos 1–7 jogáveis nesta build"
+    legend.text = "✓ concluído   •   ☄ disponível   •   🔒 bloqueado   •   Jogos 1–8 jogáveis nesta build"
     legend.modulate = Color(0.72, 0.8, 0.88)
     campaign_layer.add_child(legend)
 
@@ -558,7 +560,7 @@ func _show_season() -> void:
     note.position = Vector2(65, 530)
     note.size = Vector2(1110, 82)
     note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-    note.text = "EVOLUÇÃO v0.9: carreira, upgrades e turnovers permanecem salvos. A leitura adaptativa da Nightclaw usa apenas padrões locais de gameplay e pode ser enganada com contrajogadas."
+    note.text = "EVOLUÇÃO v1.0: carreira, upgrades e turnovers permanecem salvos. Nightclaw lê frequências; Fossil Tech calcula sequências, mostra sua previsão e pode ter o modelo quebrado por decisões inesperadas."
     note.modulate = Color(0.72, 0.82, 0.9)
     season_layer.add_child(note)
 
@@ -695,6 +697,7 @@ func _start_match(training: bool, config: Dictionary) -> void:
     match_root.home_lineup_ids = selected_trio.duplicate() if selected_trio.size() == 3 else _validated_preferred_trio()
     match_root.player_progression = profile.get("player_progress", {}).duplicate(true)
     match_root.adaptive_profile = profile.get("adaptive_profile", {}).duplicate(true)
+    match_root.sequence_profile = profile.get("sequence_profile", {}).duplicate(true)
     match_root.difficulty_name = String(profile.get("difficulty", "ADVENTURE"))
     match_root.shot_feedback_enabled = bool(profile.get("shot_feedback", true))
     match_root.reduced_fx = bool(profile.get("reduced_fx", false))

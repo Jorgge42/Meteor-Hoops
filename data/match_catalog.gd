@@ -40,7 +40,14 @@ const MATCHES := [
         "pre_chapter": "res://data/chapter_07.tres",
         "post_chapter": "res://data/chapter_07_post.tres"
     },
-    {"id": "match_08", "number": 8, "title": "O JOGO DOS DADOS", "school": "FOSSIL TECH", "subtitle": "A escola mais analítica do campeonato tenta prever cada posse.", "color": "14b8a6", "playable": false},
+    {
+        "id": "match_08", "number": 8, "title": "O JOGO DOS DADOS",
+        "school": "FOSSIL TECH",
+        "subtitle": "Previsões visíveis, decisões por valor esperado e um modelo que pode ser enganado.",
+        "color": "14b8a6", "playable": true,
+        "pre_chapter": "res://data/chapter_08.tres",
+        "post_chapter": "res://data/chapter_08_post.tres"
+    },
     {"id": "match_09", "number": 9, "title": "O RUGIDO", "school": "APEX DOMINION", "subtitle": "Semifinal. O melhor time físico antes da coroa.", "color": "eab308", "playable": false},
     {"id": "match_10", "number": 10, "title": "O METEORO", "school": "TYRANT CROWN ACADEMY", "subtitle": "Final. Drax espera no centro da quadra pelo Troféu Meteoro.", "color": "dc2626", "playable": false}
 ]
@@ -107,6 +114,14 @@ static func _apply_progression_bonus(entry: Dictionary, progress: Dictionary) ->
     return result
 
 static func away_roster(match_number: int) -> Array:
+    if match_number == 8:
+        return [
+            _player("axiom", "Axiom", "Troodon", "Armador", 88, 84, 96, 90, 42, 1.76, "Hipótese Viva", "Capitão da Fossil Tech. Encadeia ações e só antecipa uma jogada quando o modelo reúne evidência suficiente."),
+            _player("vector", "Vector", "Velociraptor", "Ala", 91, 87, 82, 88, 52, 1.84, "Linha Ótima", "Ataca o espaço de maior valor e abandona um closeout quando a probabilidade muda."),
+            _player("matrix", "Matrix", "Iguanodon", "Pivô", 65, 76, 88, 92, 91, 2.20, "Matriz de Ajuda", "Organiza a parede do garrafão e troca marcações previstas no corta-luz."),
+            _player("delta", "Delta", "Ornithomimus", "Ala", 95, 79, 84, 76, 34, 1.76, "Erro Positivo", "Reserva veloz que aumenta a variação ofensiva quando o plano principal perde valor."),
+            _player("lemma", "Lemma", "Pachycephalosaurus", "Pivô", 58, 72, 80, 89, 96, 2.26, "Prova por Contato", "Reserva físico que transforma rebote, passe curto e posição em decisões de baixo risco.")
+        ]
     if match_number == 7:
         return [
             _player("nyx", "Nyx", "Troodon", "Armador", 93, 78, 91, 95, 44, 1.74, "Visão Noturna", "Capitã da Nightclaw. Memoriza padrões e fecha a linha de passe antes de atacar a bola."),

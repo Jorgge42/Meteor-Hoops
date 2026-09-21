@@ -21,6 +21,7 @@ var tutorial_enabled := true
 var home_lineup_ids: Array = ["kiro", "luma", "bato"]
 var player_progression: Dictionary = {}
 var adaptive_profile: Dictionary = {}
+var sequence_profile: Dictionary = {}
 var difficulty_name := "ADVENTURE"
 var shot_feedback_enabled := true
 var reduced_fx := false
@@ -90,6 +91,20 @@ var points_off_turnovers := {TEAM_HOME: 0, TEAM_AWAY: 0}
 var possession_count := 0
 var turnover_happened_this_possession := false
 
+# Fossil Tech / transparent sequence prediction
+var sequence_model := SequencePredictionModel.new()
+var fossil_ai := FossilTechPredictiveAI.new()
+var fossil_actions: Dictionary = {}
+var fossil_decision_cooldowns: Dictionary = {}
+var fossil_disruption_meter := 0.0
+var fossil_model_broken_left := 0.0
+var fossil_predictions_seen := 0
+var fossil_predictions_correct := 0
+var fossil_predictions_evaded := 0
+var fossil_announce_cooldown := 0.0
+var fossil_last_announced_prediction := &""
+var home_protection_observed_this_possession := false
+
 # Physical basketball / screen state
 var team_fouls := {TEAM_HOME: 0, TEAM_AWAY: 0}
 var screen_ballhandler: DinoPlayer
@@ -128,6 +143,7 @@ var instinct_label: Label
 var feedback_label: Label
 var tutorial_label: Label
 var nightclaw_label: Label
+var fossil_label: Label
 var halftime_layer: CanvasLayer
 var halftime_status_label: Label
 var camera: Camera3D
@@ -155,8 +171,11 @@ func _process(delta: float) -> void:
     screen_call_cooldown = maxf(0.0, screen_call_cooldown - delta)
     nightclaw_takeover_left = maxf(0.0, nightclaw_takeover_left - delta)
     nightclaw_ai.takeover_active = nightclaw_takeover_left > 0.0
+    fossil_model_broken_left = maxf(0.0, fossil_model_broken_left - delta)
+    fossil_ai.model_broken = fossil_model_broken_left > 0.0
     transition_time_left = maxf(0.0, transition_time_left - delta)
     adaptation_announce_cooldown = maxf(0.0, adaptation_announce_cooldown - delta)
+    fossil_announce_cooldown = maxf(0.0, fossil_announce_cooldown - delta)
     pass_fake_time_left = maxf(0.0, pass_fake_time_left - delta)
     if pass_fake_time_left <= 0.0:
         pass_fake_player = null
@@ -335,6 +354,15 @@ func _setup_adaptive_ai() -> void:
         nightclaw_ai.difficulty = NightclawUtilityAI.Difficulty.ADVENTURE
     var match_seed := int(Time.get_unix_time_from_system()) + match_number * 9973
     nightclaw_ai.begin_match(match_seed, adaptive_profile)
+    if difficulty_name == "METEOR":
+        fossil_ai.difficulty = FossilTechPredictiveAI.Difficulty.METEOR
+    elif difficulty_name == "LEAGUE":
+        fossil_ai.difficulty = FossilTechPredictiveAI.Difficulty.LEAGUE
+    else:
+        fossil_ai.difficulty = FossilTechPredictiveAI.Difficulty.ADVENTURE
+    fossil_ai.begin_match(match_seed + 808)
+    if not sequence_profile.is_empty():
+        sequence_model.from_dictionary(sequence_profile)
     if not match_director.intervention_requested.is_connected(_on_director_intervention):
         match_director.intervention_requested.connect(_on_director_intervention)
 
@@ -530,6 +558,15 @@ func _build_hud() -> void:
     nightclaw_label.visible = match_number == 7
     layer.add_child(nightclaw_label)
 
+    fossil_label = Label.new()
+    fossil_label.position = Vector2(875, 215)
+    fossil_label.size = Vector2(380, 145)
+    fossil_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+    fossil_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    fossil_label.modulate = Color(0.25, 0.92, 0.78)
+    fossil_label.visible = match_number == 8
+    layer.add_child(fossil_label)
+
 func request_pass(passer: DinoPlayer, input_dir: Vector2) -> void:
     if passer == null or not passer.has_ball or not is_gameplay_live():
         return
@@ -601,7 +638,7 @@ func request_pass_fake(passer: DinoPlayer, input_dir: Vector2) -> void:
     direction = direction.normalized()
     var fake_target := passer.global_position + direction * 7.0
 
-    if match_number == 7 and passer.team_id == TEAM_HOME:
+    if match_number in [7, 8] and passer.team_id == TEAM_HOME:
         for defender_value in away_players:
             var defender := defender_value as DinoPlayer
             var lane := PassingLaneAnalyzer.distance_to_segment(
@@ -625,7 +662,12 @@ func request_pass_fake(passer: DinoPlayer, input_dir: Vector2) -> void:
 
 
 func notify_ball_protection(player: DinoPlayer) -> void:
-    if player != null and player.team_id == TEAM_HOME:
+    if (
+        player != null
+        and player.team_id == TEAM_HOME
+        and not home_protection_observed_this_possession
+    ):
+        home_protection_observed_this_possession = true
         _observe_home_action(&"protect_ball", true)
 
 
@@ -661,6 +703,71 @@ func _prepare_pass_context(
 func _observe_home_action(action: StringName, succeeded: bool) -> void:
     if match_number == 7:
         tendency_model.observe(action, succeeded)
+    elif match_number == 8:
+        var result := sequence_model.observe(action)
+        _resolve_fossil_prediction(result)
+
+
+func _resolve_fossil_prediction(result: Dictionary) -> void:
+    if fossil_model_broken_left > 0.0:
+        return
+    if not bool(result.get("had_prediction", false)):
+        for id in fossil_actions.keys():
+            fossil_decision_cooldowns[id] = maxf(
+                float(fossil_decision_cooldowns.get(id, 0.0)),
+                fossil_ai.reaction_time()
+            )
+        return
+    var model_just_broken := false
+    fossil_predictions_seen += 1
+    var predicted := StringName(result.get("predicted", &""))
+    var actual := StringName(result.get("actual", &""))
+    var confidence := clampf(float(result.get("confidence", 0.0)), 0.0, 1.0)
+    if bool(result.get("correct", false)):
+        fossil_predictions_correct += 1
+        fossil_disruption_meter = maxf(0.0, fossil_disruption_meter - 12.0)
+        if fossil_announce_cooldown <= 0.0:
+            _set_event_feedback(
+                "FOSSIL TECH CONFIRMOU %s • varie a próxima decisão" % _tendency_label(actual),
+                Color(0.35, 0.92, 0.78),
+                1.25
+            )
+            fossil_announce_cooldown = 3.0
+    else:
+        fossil_predictions_evaded += 1
+        var disruption_gain := 20.0 + confidence * 22.0
+        disruption_gain *= clampf(float(result.get("surprise", 0.5)) + 0.45, 0.75, 1.35)
+        fossil_disruption_meter = minf(
+            GameTuning.FOSSIL_DISRUPTION_MAX,
+            fossil_disruption_meter + disruption_gain
+        )
+        _set_event_feedback(
+            "PREVISÃO QUEBRADA • esperava %s, recebeu %s" % [
+                _tendency_label(predicted),
+                _tendency_label(actual),
+            ],
+            Color(1.0, 0.78, 0.28),
+            1.7
+        )
+        if fossil_disruption_meter >= GameTuning.FOSSIL_DISRUPTION_MAX:
+            fossil_disruption_meter = 0.0
+            fossil_model_broken_left = GameTuning.FOSSIL_MODEL_BROKEN_DURATION
+            fossil_ai.model_broken = true
+            model_just_broken = true
+            _set_event_feedback(
+                "◆ MODELO QUEBRADO ◆ • previsões suspensas por %.0fs" % GameTuning.FOSSIL_MODEL_BROKEN_DURATION,
+                Color(1.0, 0.72, 0.22),
+                2.2
+            )
+    if model_just_broken:
+        fossil_actions.clear()
+        fossil_decision_cooldowns.clear()
+    else:
+        for id in fossil_actions.keys():
+            fossil_decision_cooldowns[id] = maxf(
+                float(fossil_decision_cooldowns.get(id, 0.0)),
+                fossil_ai.reaction_time()
+            )
 
 func request_screen(ballhandler: DinoPlayer) -> void:
     if ballhandler == null or not ballhandler.has_ball or not is_gameplay_live():
@@ -1195,6 +1302,11 @@ func _update_ai(delta: float) -> void:
             0.0,
             float(nightclaw_decision_cooldowns[key]) - delta
         )
+    for key in fossil_decision_cooldowns.keys():
+        fossil_decision_cooldowns[key] = maxf(
+            0.0,
+            float(fossil_decision_cooldowns[key]) - delta
+        )
 
     for value in all_players:
         var ai_player := value as DinoPlayer
@@ -1258,8 +1370,9 @@ func _update_ai(delta: float) -> void:
             continue
         var assignment := offense[defender.roster_index % offense.size()] as DinoPlayer
         var night_defense := match_number == 7 and defender.team_id == TEAM_AWAY
+        var fossil_defense := match_number == 8 and defender.team_id == TEAM_AWAY
         var defender_id := defender.get_instance_id()
-        if night_defense and fake_defender_targets.has(defender_id):
+        if (night_defense or fossil_defense) and fake_defender_targets.has(defender_id):
             var fake_target: Vector3 = fake_defender_targets[defender_id]
             defender.set_ai_target(
                 fake_target,
@@ -1310,6 +1423,27 @@ func _update_ai(delta: float) -> void:
                 NightclawUtilityAI.DefensiveAction.RETREAT,
             ]
             defender.set_ai_target(night_target, sprint_to_target)
+            continue
+        if fossil_defense:
+            var fossil_decision := _fossil_decision_for(defender)
+            var scheme := int(fossil_decision.get(
+                "scheme",
+                FossilTechPredictiveAI.DefensiveScheme.BALANCED
+            ))
+            var fossil_target := _fossil_defensive_target(
+                defender,
+                assignment,
+                holder,
+                scheme,
+                contain,
+                toward_hoop
+            )
+            var fossil_sprint := scheme in [
+                FossilTechPredictiveAI.DefensiveScheme.JUMP_PASS_LANE,
+                FossilTechPredictiveAI.DefensiveScheme.EARLY_CLOSEOUT,
+                FossilTechPredictiveAI.DefensiveScheme.SWITCH_SCREEN,
+            ]
+            defender.set_ai_target(fossil_target, fossil_sprint)
             continue
         if toward_hoop.length() > 0.01:
             contain += toward_hoop.normalized() * contain_gap
@@ -1455,6 +1589,108 @@ func _announce_nightclaw_adaptation(decision: Dictionary) -> void:
         2.2
     )
 
+
+func _fossil_decision_for(defender: DinoPlayer) -> Dictionary:
+    var id := defender.get_instance_id()
+    if not fossil_actions.has(id):
+        var initial_delay := fossil_ai.reaction_time()
+        var initial := {
+            "scheme": FossilTechPredictiveAI.DefensiveScheme.BALANCED,
+            "prediction": &"",
+            "confidence": 0.0,
+            "reaction_delay": initial_delay,
+            "reason": "A Fossil Tech aguarda evidência antes de rotacionar.",
+            "counterplay": fossil_ai.counterplay_hint(
+                FossilTechPredictiveAI.DefensiveScheme.BALANCED
+            ),
+        }
+        fossil_actions[id] = initial
+        fossil_decision_cooldowns[id] = initial_delay
+        return initial
+    if float(fossil_decision_cooldowns.get(id, 0.0)) > 0.0:
+        return fossil_actions[id]
+
+    var decision := fossil_ai.choose_defensive_scheme(sequence_model.predict_next())
+    fossil_actions[id] = decision
+    fossil_decision_cooldowns[id] = float(
+        decision.get("reaction_delay", fossil_ai.reaction_time())
+    )
+    _announce_fossil_prediction(decision)
+    return decision
+
+
+func _fossil_defensive_target(
+    defender: DinoPlayer,
+    assignment: DinoPlayer,
+    holder: DinoPlayer,
+    scheme: int,
+    contain: Vector3,
+    toward_hoop: Vector3
+) -> Vector3:
+    var target := contain
+    match scheme:
+        FossilTechPredictiveAI.DefensiveScheme.JUMP_PASS_LANE:
+            if holder != null and assignment != holder:
+                var lane := PassingLaneAnalyzer.distance_to_segment(
+                    defender.global_position,
+                    holder.global_position,
+                    assignment.global_position
+                )
+                target = lane.get("closest", contain)
+                var toward_receiver := assignment.global_position - target
+                toward_receiver.y = 0.0
+                if toward_receiver.length() > 0.05:
+                    target += toward_receiver.normalized() * 0.32
+            elif holder != null:
+                target = holder.global_position
+                var shade := _attack_hoop(holder.team_id) - holder.global_position
+                shade.y = 0.0
+                if shade.length() > 0.05:
+                    target += shade.normalized() * 0.72
+        FossilTechPredictiveAI.DefensiveScheme.WALL_PAINT:
+            var protected_hoop := _defended_hoop(defender.team_id)
+            var threat := holder if holder != null and assignment == holder else assignment
+            target = threat.global_position.lerp(protected_hoop, 0.34)
+            target.y = 0.0
+        FossilTechPredictiveAI.DefensiveScheme.EARLY_CLOSEOUT:
+            target = assignment.global_position
+            if toward_hoop.length() > 0.05:
+                target += toward_hoop.normalized() * 0.48
+        FossilTechPredictiveAI.DefensiveScheme.SWITCH_SCREEN:
+            if is_instance_valid(screen_ballhandler) and is_instance_valid(screen_screener):
+                if assignment == screen_ballhandler:
+                    target = screen_screener.global_position
+                elif assignment == screen_screener:
+                    target = screen_ballhandler.global_position
+                elif toward_hoop.length() > 0.05:
+                    target += toward_hoop.normalized() * GameTuning.FOSSIL_CONTAIN_GAP
+            elif toward_hoop.length() > 0.05:
+                target += toward_hoop.normalized() * GameTuning.FOSSIL_CONTAIN_GAP
+        _:
+            if toward_hoop.length() > 0.05:
+                target += toward_hoop.normalized() * GameTuning.FOSSIL_CONTAIN_GAP
+    target.x = clampf(target.x, -6.2, 6.2)
+    target.z = clampf(target.z, -11.4, 11.4)
+    return target
+
+
+func _announce_fossil_prediction(decision: Dictionary) -> void:
+    if fossil_announce_cooldown > 0.0 or fossil_model_broken_left > 0.0:
+        return
+    var predicted := StringName(decision.get("prediction", &""))
+    if predicted == &"" or predicted == fossil_last_announced_prediction:
+        return
+    fossil_last_announced_prediction = predicted
+    fossil_announce_cooldown = 4.0
+    _set_event_feedback(
+        "FOSSIL TECH PROJETA %s • %s" % [
+            _tendency_label(predicted),
+            String(decision.get("counterplay", "varie a sequência")),
+        ],
+        Color(0.30, 0.92, 0.78),
+        2.2
+    )
+
 func _update_ai_ballhandler(player: DinoPlayer) -> void:
     if float(instinct_meter[player.team_id]) >= GameTuning.INSTINCT_MAX and not is_instinct_active(player.team_id):
         request_instinct(player)
@@ -1466,6 +1702,7 @@ func _update_ai_ballhandler(player: DinoPlayer) -> void:
     var sky_attack := match_number == 5 and player.team_id == TEAM_AWAY
     var iron_attack := match_number == 6 and player.team_id == TEAM_AWAY
     var night_attack := match_number == 7 and player.team_id == TEAM_AWAY
+    var fossil_attack := match_number == 8 and player.team_id == TEAM_AWAY
     var night_transition := (
         night_attack
         and transition_team == TEAM_AWAY
@@ -1503,6 +1740,9 @@ func _update_ai_ballhandler(player: DinoPlayer) -> void:
         if night_transition:
             delay_min *= 0.82
             delay_max *= 0.82
+    elif fossil_attack:
+        delay_min = GameTuning.FOSSIL_AI_MIN_DELAY
+        delay_max = GameTuning.FOSSIL_AI_MAX_DELAY
     var ai_factor := _difficulty_ai_multiplier() if player.team_id == TEAM_AWAY else 1.0
     delay_min /= ai_factor
     delay_max /= ai_factor
@@ -1518,6 +1758,78 @@ func _update_ai_ballhandler(player: DinoPlayer) -> void:
     var shot_contest_limit := 0.72 if ember_attack else 0.62
     var sky_target := _best_lob_target(player) if sky_attack else null
     var sky_lob_ready := sky_attack and sky_target != null and _flat_distance(sky_target.global_position, hoop) <= GameTuning.ALLEY_TARGET_MAX_DISTANCE
+    if fossil_attack:
+        var fossil_receiver := _best_ai_pass_target(player)
+        var finish_ev := -1.0
+        if to_hoop.length() <= GameTuning.FINISH_MAX_DISTANCE:
+            var finish_quality := clampf(
+                0.52
+                + float(player.data.shooting) * 0.0022
+                + float(player.data.strength) * 0.0014
+                - contest * 0.34,
+                0.18,
+                0.96
+            )
+            finish_ev = finish_quality * 2.0
+        var shot_ev := -1.0
+        if to_hoop.length() <= 8.0:
+            var shot_value := 3.0 if to_hoop.length() >= GameTuning.THREE_POINT_DISTANCE else 2.0
+            var range_penalty := maxf(0.0, to_hoop.length() - 4.0) * 0.025
+            var shot_quality := clampf(
+                0.30
+                + float(player.data.shooting) * 0.0052
+                - contest * 0.48
+                - range_penalty,
+                0.12,
+                0.88
+            )
+            shot_ev = shot_quality * shot_value
+        var pass_ev := -1.0
+        if fossil_receiver != null:
+            var progress_gain := maxf(
+                0.0,
+                to_hoop.length() - _flat_distance(fossil_receiver.global_position, hoop)
+            )
+            pass_ev = (
+                0.48
+                + _openness_score(fossil_receiver) * 0.46
+                + progress_gain * 0.035
+                + float(player.data.passing) * 0.0015
+            )
+        var fossil_choice := fossil_ai.choose_offensive_action({
+            "finish_ev": finish_ev,
+            "shot_ev": shot_ev,
+            "pass_ev": pass_ev,
+        })
+        match StringName(fossil_choice.get("action", &"pass")):
+            &"finish":
+                request_finish(player)
+            &"shot":
+                var fossil_timing := clampf(
+                    0.62 + float(player.data.shooting) / 260.0 + rng.randf_range(-0.06, 0.06),
+                    0.50,
+                    0.97
+                )
+                _release_shot(player, fossil_timing)
+            _:
+                if fossil_receiver != null:
+                    _prepare_pass_context(player, fossil_receiver, false)
+                    last_passer_by_team[player.team_id] = player
+                    player.release_ball()
+                    var fossil_pass_speed := lerpf(
+                        GameTuning.PASS_SPEED,
+                        GameTuning.STRONG_PASS_SPEED,
+                        float(player.data.passing) / 100.0
+                    )
+                    ball.launch_pass(
+                        fossil_receiver.global_position + Vector3.UP * 1.02,
+                        fossil_receiver,
+                        fossil_pass_speed,
+                        player.team_id
+                    )
+                    feedback_label.text = "FOSSIL TECH ESCOLHE O MAIOR VALOR"
+        ai_action_cooldowns[id] = rng.randf_range(delay_min, delay_max)
+        return
     if night_transition:
         var transition_receiver := _best_transition_target(player)
         if transition_receiver != null:
@@ -1862,8 +2174,13 @@ func _start_possession(team: int, new_clock: float = GameTuning.SHOT_CLOCK) -> v
         if not turnover_happened_this_possession:
             match_director.observe_event(&"safe_possession")
         match_director.observe_event(&"possession_end")
+    if possession_count > 0 and match_number == 8:
+        sequence_model.finish_possession()
+    elif possession_count == 0 and match_number == 8:
+        sequence_model.begin_possession()
     possession_count += 1
     turnover_happened_this_possession = false
+    home_protection_observed_this_possession = false
     _clear_screen_state()
     possession_team = team
     last_passer_by_team[team] = null
@@ -1877,6 +2194,8 @@ func _start_possession(team: int, new_clock: float = GameTuning.SHOT_CLOCK) -> v
     ai_action_cooldowns.clear()
     nightclaw_actions.clear()
     nightclaw_decision_cooldowns.clear()
+    fossil_actions.clear()
+    fossil_decision_cooldowns.clear()
     pass_fake_player = null
     pass_fake_time_left = 0.0
     pass_fake_safety_available = false
@@ -2286,6 +2605,31 @@ func _refresh_match_hud() -> void:
                 roundi(nightclaw_takeover_meter),
                 reading,
             ]
+    if is_instance_valid(fossil_label) and match_number == 8:
+        var forecast := sequence_model.predict_next()
+        var accuracy := 0
+        if fossil_predictions_seen > 0:
+            accuracy = roundi(
+                float(fossil_predictions_correct) / float(fossil_predictions_seen) * 100.0
+            )
+        if fossil_model_broken_left > 0.0:
+            fossil_label.text = "◆ MODELO QUEBRADO ◆\n%.1fs • rotações preditivas suspensas\nERROS FORÇADOS: %d" % [
+                fossil_model_broken_left,
+                fossil_predictions_evaded,
+            ]
+        elif bool(forecast.get("available", false)):
+            fossil_label.text = "PRÓXIMA: %s • %d%%\nQUEBRAR MODELO: %d%%\nACERTO DO MODELO: %d%% • V cria isca" % [
+                _tendency_label(StringName(forecast.get("action", &""))),
+                roundi(float(forecast.get("confidence", 0.0)) * 100.0),
+                roundi(fossil_disruption_meter),
+                accuracy,
+            ]
+        else:
+            fossil_label.text = "MODELO: COLETANDO SEQUÊNCIAS\nEVIDÊNCIA: %.1f/%.0f\nQUEBRAR MODELO: %d%% • varie ações" % [
+                float(forecast.get("evidence", 0.0)),
+                SequencePredictionModel.MIN_CONTEXT_EVIDENCE,
+                roundi(fossil_disruption_meter),
+            ]
     if match_state == MatchState.FREE_THROW:
         period_label.text = "LANCE LIVRE"
         timer_label.text = _format_time(period_time_left)
@@ -2339,6 +2683,10 @@ func _tendency_label(action: StringName) -> String:
             return "ARREMESSO"
         &"post_move":
             return "JOGO DE COSTAS"
+        &"screen":
+            return "CORTA-LUZ"
+        &"pass_fake":
+            return "FINTA DE PASSE"
         &"protect_ball":
             return "PROTEÇÃO DE BOLA"
         _:
@@ -2396,6 +2744,10 @@ func _show_halftime() -> void:
         tendency_model.reset_short_term_memory()
         nightclaw_actions.clear()
         nightclaw_decision_cooldowns.clear()
+    elif match_number == 8:
+        sequence_model.reset_short_term_memory()
+        fossil_actions.clear()
+        fossil_decision_cooldowns.clear()
     if is_instance_valid(halftime_layer):
         halftime_layer.queue_free()
     halftime_layer = CanvasLayer.new()
@@ -2574,6 +2926,12 @@ func get_home_stats_summary() -> Dictionary:
         "team_turnovers": turnovers.duplicate(true),
         "points_off_turnovers": points_off_turnovers.duplicate(true),
         "adaptive_profile": tendency_model.to_dictionary(),
+        "sequence_profile": sequence_model.to_dictionary(),
+        "prediction_summary": {
+            "seen": fossil_predictions_seen,
+            "correct": fossil_predictions_correct,
+            "evaded": fossil_predictions_evaded,
+        },
     }
 
 func _green_window() -> float:

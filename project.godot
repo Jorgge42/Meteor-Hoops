@@ -1,9 +1,9 @@
 ; Engine configuration file.
-; Meteor Hoops prototype v0.9
+; Meteor Hoops prototype v1.0
 config_version=5
 
 [application]
-config/name="Meteor Hoops - Prototype v0.9"
+config/name="Meteor Hoops - Prototype v1.0"
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
 

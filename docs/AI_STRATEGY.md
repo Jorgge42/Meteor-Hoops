@@ -1,4 +1,4 @@
-# Estratégia de IA — v0.9
+# Estratégia de IA — v1.0
 
 ## Princípio
 
@@ -10,7 +10,9 @@ A IA de Meteor Hoops deve criar decisões legíveis e contrajogo. O objetivo nã
 |---|---|
 | Percepção | Posições, portador, linha de passe, pressão, ajuda e transição |
 | Memória | Frequência, sucesso, repetição recente, confiança e decaimento |
+| Sequência | Transições agregadas entre ações e previsão contextual da próxima decisão |
 | Decisão | Pontuação utilitária com pequena variação determinística por partida |
+| Valor esperado | Comparação ofensiva entre passe, arremesso e finalização observáveis |
 | Execução | Alvos de movimento, contenção, negação, trap e contra-ataque |
 | Direção | Dicas contextuais e mudanças limitadas de pesos estratégicos |
 | Explicação | Tendência detectada, takeover e mensagem de contrajogada no HUD |
@@ -24,6 +26,10 @@ A IA de Meteor Hoops deve criar decisões legíveis e contrajogo. O objetivo nã
 - O diretor pode mudar dicas, comentário e pesos estratégicos.
 - O diretor não pode mudar chance de acerto, física da bola ou atributos ocultos.
 - Toda ação defensiva especial possui ao menos uma resposta disponível ao jogador.
+- A Fossil Tech só usa uma previsão depois de três evidências no mesmo contexto.
+- A previsão, a confiança e o estado vulnerável ficam visíveis antes do compromisso defensivo.
+- Uma previsão errada é preservada como erro; o sistema não a reclassifica depois da ação.
+- O estado Modelo Quebrado suspende antecipação e aumenta o atraso de reação.
 
 Esses contratos são executados por `tests/test_ai_contracts.gd` no CI.
 
@@ -39,8 +45,9 @@ Modelos generativos continuam úteis no pipeline de produção — concept art, 
 2. Adicionar intenção compartilhada para companheiros, evitando dois atletas ocuparem o mesmo espaço.
 3. Registrar eventos de playtest em arquivo local opt-in e gerar relatório de balanceamento.
 4. Criar replay fantasma determinístico para reproduzir turnovers e bugs.
-5. Usar a Fossil Tech para introduzir previsão de jogadas com falsa certeza e exploração do lado fraco.
-6. Criar um técnico contextual que explique uma alternativa após duas falhas semelhantes, sem interromper a posse.
+5. Criar um técnico contextual que explique uma alternativa após duas falhas semelhantes, sem interromper a posse.
+6. Comparar previsões por formação e zona da quadra sem armazenar trajetórias individuais.
+7. Separar o avaliador de valor esperado em dados configuráveis por escola.
 
 ## Métricas de balanceamento
 
@@ -51,3 +58,7 @@ Modelos generativos continuam úteis no pipeline de produção — concept art, 
 - tempo entre leitura mostrada e mudança de comportamento;
 - frequência e duração do Eclipse Defensivo;
 - diferença entre dificuldades causada por decisão, não por atributos escondidos.
+- taxa de acerto da previsão por contexto;
+- previsões quebradas por posse;
+- tempo até o jogador provocar o primeiro Modelo Quebrado;
+- distribuição das escolhas de maior valor da Fossil Tech.

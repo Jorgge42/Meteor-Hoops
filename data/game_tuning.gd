@@ -146,6 +146,13 @@ const PASS_FAKE_COOLDOWN := 1.30
 const PASS_FAKE_SAFETY_BONUS := 0.26
 const PASS_FAKE_BAIT_STEP := 1.20
 
+# Fossil Tech / sequence prediction. Prediction changes positioning, never outcomes.
+const FOSSIL_AI_MIN_DELAY := 0.48
+const FOSSIL_AI_MAX_DELAY := 0.86
+const FOSSIL_CONTAIN_GAP := 0.94
+const FOSSIL_DISRUPTION_MAX := 100.0
+const FOSSIL_MODEL_BROKEN_DURATION := 6.0
+
 # Difficulty multipliers
 const DIFFICULTY_ADVENTURE_AI := 0.90
 const DIFFICULTY_LEAGUE_AI := 1.00

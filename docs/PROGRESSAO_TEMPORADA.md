@@ -1,4 +1,4 @@
-# Progressão e temporada — v0.9
+# Progressão e temporada — v1.0
 
 ## Filosofia
 A carreira tem duas camadas: identidade automática e escolha do jogador. O objetivo é permitir personalização sem transformar todos os dinossauros no mesmo atleta.

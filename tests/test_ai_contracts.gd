@@ -4,6 +4,8 @@ const TendencyModel = preload("res://systems/ai/player_tendency_model.gd")
 const LaneAnalyzer = preload("res://systems/ai/passing_lane_analyzer.gd")
 const NightclawAI = preload("res://systems/ai/nightclaw_utility_ai.gd")
 const FairDirector = preload("res://systems/ai/fair_match_director.gd")
+const SequenceModel = preload("res://systems/ai/sequence_prediction_model.gd")
+const FossilAI = preload("res://systems/ai/fossil_tech_predictive_ai.gd")
 const Catalog = preload("res://data/match_catalog.gd")
 const Saves = preload("res://systems/save_manager.gd")
 
@@ -19,6 +21,12 @@ func _init() -> void:
     _test_high_risk_lane_is_denied()
     _test_director_never_changes_hidden_outcomes()
     _test_game_seven_and_save_contract()
+    _test_sequence_prediction_requires_context_evidence()
+    _test_sequence_prediction_can_be_broken()
+    _test_sequence_profile_round_trip_is_bounded()
+    _test_fossil_reaction_and_counterplay_contract()
+    _test_fossil_expected_value_choice()
+    _test_game_eight_and_save_contract()
 
     if failures.is_empty():
         print("AI CONTRACTS: %d checks passed" % checks)
@@ -144,10 +152,151 @@ func _test_game_seven_and_save_contract() -> void:
         "A HQ pós-jogo do capítulo 7 deve existir."
     )
     var profile: Dictionary = Saves.default_profile()
-    _expect(int(profile.get("version", 0)) == 6, "O save padrão deve usar a versão 6.")
+    _expect(int(profile.get("version", 0)) == 7, "O save padrão deve usar a versão 7.")
     _expect(
         typeof(profile.get("adaptive_profile")) == TYPE_DICTIONARY,
         "O save deve conter um perfil adaptativo local."
+    )
+
+
+func _test_sequence_prediction_requires_context_evidence() -> void:
+    var model = SequenceModel.new()
+    model.begin_possession()
+    model.observe(&"screen")
+    model.observe(&"drive")
+    _expect(
+        not bool(model.predict_next().get("available", true)),
+        "Uma sequência isolada não pode liberar previsão confiante."
+    )
+    for _i in range(2):
+        model.begin_possession()
+        model.observe(&"screen")
+        model.observe(&"drive")
+    model.begin_possession()
+    model.observe(&"screen")
+    var forecast: Dictionary = model.predict_next()
+    _expect(
+        bool(forecast.get("available", false)) and StringName(forecast.get("action", &"")) == &"drive",
+        "Três sequências iguais devem permitir prever drive após o corta-luz."
+    )
+    _expect(
+        float(forecast.get("confidence", 0.0)) <= 1.0,
+        "A confiança da sequência deve permanecer limitada a 100%."
+    )
+
+
+func _test_sequence_prediction_can_be_broken() -> void:
+    var model = SequenceModel.new()
+    for _i in range(3):
+        model.begin_possession()
+        model.observe(&"drive")
+    model.begin_possession()
+    var result: Dictionary = model.observe(&"jump_shot")
+    _expect(
+        bool(result.get("had_prediction", false)),
+        "O modelo deve declarar a previsão antes de avaliar a ação real."
+    )
+    _expect(
+        not bool(result.get("correct", true)),
+        "Uma ação inesperada deve quebrar a previsão, não ser reclassificada depois."
+    )
+    _expect(
+        StringName(result.get("predicted", &"")) == &"drive",
+        "O erro deve preservar qual ação havia sido prevista."
+    )
+
+
+func _test_sequence_profile_round_trip_is_bounded() -> void:
+    var model = SequenceModel.new()
+    model.from_dictionary({
+        "transitions": {
+            "possession_start": {"screen": 999.0},
+            "screen": {"drive": 4.0},
+        }
+    })
+    model.begin_possession()
+    var start_forecast: Dictionary = model.predict_next()
+    _expect(
+        float(start_forecast.get("evidence", 0.0)) <= SequenceModel.MAX_TRANSITION_WEIGHT,
+        "Dados salvos não podem ultrapassar o peso máximo por transição."
+    )
+    var restored = SequenceModel.new()
+    restored.from_dictionary(model.to_dictionary())
+    restored.begin_possession()
+    _expect(
+        StringName(restored.predict_next().get("action", &"")) == &"screen",
+        "O modelo de sequência deve sobreviver ao round-trip do save."
+    )
+
+
+func _test_fossil_reaction_and_counterplay_contract() -> void:
+    var ai = FossilAI.new()
+    ai.begin_match(808)
+    for difficulty in [
+        FossilAI.Difficulty.ADVENTURE,
+        FossilAI.Difficulty.LEAGUE,
+        FossilAI.Difficulty.METEOR,
+    ]:
+        ai.difficulty = difficulty
+        _expect(
+            ai.reaction_time() >= FossilAI.REACTION_FLOOR,
+            "A Fossil Tech deve respeitar o piso de reação visível."
+        )
+    var decision: Dictionary = ai.choose_defensive_scheme({
+        "available": true,
+        "action": &"normal_pass",
+        "confidence": 0.80,
+    })
+    _expect(
+        int(decision.get("scheme", -1)) == FossilAI.DefensiveScheme.JUMP_PASS_LANE,
+        "Uma previsão de passe deve deslocar a defesa para a linha prevista."
+    )
+    _expect(
+        not String(decision.get("counterplay", "")).is_empty(),
+        "Toda rotação preditiva deve informar uma contrajogada."
+    )
+    ai.model_broken = true
+    decision = ai.choose_defensive_scheme({
+        "available": true,
+        "action": &"drive",
+        "confidence": 1.0,
+    })
+    _expect(
+        int(decision.get("scheme", -1)) == FossilAI.DefensiveScheme.BALANCED,
+        "O estado Modelo Quebrado deve suspender a antecipação."
+    )
+
+
+func _test_fossil_expected_value_choice() -> void:
+    var ai = FossilAI.new()
+    ai.begin_match(42)
+    var decision: Dictionary = ai.choose_offensive_action({
+        "finish_ev": 0.30,
+        "shot_ev": 2.10,
+        "pass_ev": 0.90,
+    })
+    _expect(
+        StringName(decision.get("action", &"")) == &"shot",
+        "A Fossil Tech deve escolher o arremesso quando seu valor é claramente maior."
+    )
+
+
+func _test_game_eight_and_save_contract() -> void:
+    var match_eight: Dictionary = Catalog.get_match(8)
+    _expect(bool(match_eight.get("playable", false)), "O Jogo 8 deve estar jogável.")
+    _expect(
+        ResourceLoader.exists(String(match_eight.get("pre_chapter", ""))),
+        "A HQ pré-jogo do capítulo 8 deve existir."
+    )
+    _expect(
+        ResourceLoader.exists(String(match_eight.get("post_chapter", ""))),
+        "A HQ pós-jogo do capítulo 8 deve existir."
+    )
+    var profile: Dictionary = Saves.default_profile()
+    _expect(int(profile.get("version", 0)) == 7, "O save padrão deve usar a versão 7.")
+    _expect(
+        typeof(profile.get("sequence_profile")) == TYPE_DICTIONARY,
+        "O save deve conter o perfil agregado de sequências."
     )
 
 

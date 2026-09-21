@@ -9,7 +9,7 @@ const PLAYER_NAMES := {
 
 static func default_profile() -> Dictionary:
     return {
-        "version": 6,
+        "version": 7,
         "intro_seen": false,
         "seen_story_chapters": [],
         "tutorial_completed": false,
@@ -30,6 +30,10 @@ static func default_profile() -> Dictionary:
             "version": 1,
             "attempts": {},
             "successes": {}
+        },
+        "sequence_profile": {
+            "version": 1,
+            "transitions": {}
         },
         "last_progression": []
     }
@@ -70,11 +74,11 @@ static func load_profile() -> Dictionary:
         if not seen.has("chapter_01_pre"):
             seen.append("chapter_01_pre")
         profile["seen_story_chapters"] = seen
-    _ensure_v6(profile)
-    profile["version"] = 6
+    _ensure_v7(profile)
+    profile["version"] = 7
     return profile
 
-static func _ensure_v6(profile: Dictionary) -> void:
+static func _ensure_v7(profile: Dictionary) -> void:
     var progress: Dictionary = profile.get("player_progress", {})
     var defaults := _default_player_progress()
     for id in PLAYER_IDS:
@@ -122,6 +126,17 @@ static func _ensure_v6(profile: Dictionary) -> void:
             adaptive["successes"] = {}
         adaptive["version"] = 1
         profile["adaptive_profile"] = adaptive
+    var sequence = profile.get("sequence_profile", {})
+    if typeof(sequence) != TYPE_DICTIONARY:
+        profile["sequence_profile"] = {
+            "version": 1,
+            "transitions": {}
+        }
+    else:
+        if typeof(sequence.get("transitions", {})) != TYPE_DICTIONARY:
+            sequence["transitions"] = {}
+        sequence["version"] = 1
+        profile["sequence_profile"] = sequence
 
 static func save_profile(profile: Dictionary) -> bool:
     var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
@@ -211,7 +226,7 @@ static func xp_to_next_level(xp: int) -> int:
     return maxi(0, xp_threshold_for_level(level + 1) - xp)
 
 static func _apply_progression(profile: Dictionary, stats: Dictionary, won: bool) -> void:
-    _ensure_v6(profile)
+    _ensure_v7(profile)
     var progress: Dictionary = profile.get("player_progress", {})
     var totals: Dictionary = profile.get("season_totals", {})
     var summary: Array = []
@@ -273,9 +288,12 @@ static func _apply_progression(profile: Dictionary, stats: Dictionary, won: bool
     var adaptive = stats.get("adaptive_profile", {})
     if typeof(adaptive) == TYPE_DICTIONARY and not adaptive.is_empty():
         profile["adaptive_profile"] = adaptive.duplicate(true)
+    var sequence = stats.get("sequence_profile", {})
+    if typeof(sequence) == TYPE_DICTIONARY and not sequence.is_empty():
+        profile["sequence_profile"] = sequence.duplicate(true)
 
 static func spend_upgrade_point(profile: Dictionary, player_id: String, stat: String) -> Dictionary:
-    _ensure_v6(profile)
+    _ensure_v7(profile)
     if not PLAYER_IDS.has(player_id):
         return profile
     if not ["speed", "shooting", "passing", "defense", "strength"].has(stat):
