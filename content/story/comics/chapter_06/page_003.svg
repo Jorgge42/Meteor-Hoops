@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+<rect width="1280" height="720" fill="#0d0f12"/>
+<circle cx="1080" cy="105" r="190" fill="#b6a38a" opacity="0.16"/>
+<path d="M0 640 L210 530 L400 610 L590 500 L780 620 L1010 455 L1280 575 L1280 720 L0 720 Z" fill="#b6a38a" opacity="0.13"/>
+<path d="M90 570 L1190 570" stroke="#b6a38a" stroke-width="8" opacity="0.25"/>
+<path d="M230 570 L230 645 M455 570 L455 645 M680 570 L680 645 M905 570 L905 645" stroke="#b6a38a" stroke-width="5" opacity="0.20"/>
+<text x="80" y="100" font-family="sans-serif" font-size="28" fill="#b6a38a">CAPÍTULO 06 • PAREDE DE CHIFRES</text>
+<text x="80" y="155" font-family="sans-serif" font-size="19" fill="#8da4b8">PÁGINA 3</text>
+<text x="80" y="255" font-family="sans-serif" font-size="40" font-weight="700" fill="#f5fbff">UMA PAREDE TAMBÉM PODE CRIAR UM CAMINHO.</text>
+<text x="80" y="350" font-family="sans-serif" font-size="26" fill="#c8d9e8">Kiro aprende a chamar um corta-luz. Mako ensina a proteger a bola.</text>
+<text x="80" y="392" font-family="sans-serif" font-size="26" fill="#c8d9e8">Luma treina a calma na linha de lance livre. Para atravessar a</text>
+<text x="80" y="434" font-family="sans-serif" font-size="26" fill="#c8d9e8">Ironhorn, a Vale Fóssil terá de transformar força em ângulo.</text>
+<text x="1120" y="660" font-family="sans-serif" font-size="24" fill="#b6a38a" opacity="0.80">☄ 06</text>
+</svg>

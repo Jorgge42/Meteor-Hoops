@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+<defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#111827"/><stop offset="1" stop-color="#2b130c"/></linearGradient></defs>
+<rect width="1280" height="720" fill="url(#g)"/>
+<circle cx="1120" cy="110" r="190" fill="#38c7b4" opacity="0.11"/>
+<circle cx="1050" cy="590" r="260" fill="#ffffff" opacity="0.025"/>
+<path d="M70 610 C 280 545, 420 675, 650 610 S 1010 545, 1210 620" fill="none" stroke="#38c7b4" stroke-width="5" opacity="0.35"/>
+<text x="70" y="88" font-size="24" font-family="sans-serif" fill="#38c7b4" font-weight="700">DEPOIS DO JOGO • O CALOR BAIXA</text><text x="70" y="158" font-size="46" font-family="sans-serif" fill="#f7f8fb" font-weight="800">RÁPIDO NÃO É APRESSADO.</text><text x="70" y="228" font-size="25" font-family="sans-serif" fill="#d5dbe6">A Vale Fóssil aprende a usar o primeiro passe para quebrar pressão.</text><text x="70" y="270" font-size="25" font-family="sans-serif" fill="#d5dbe6">Kiro percebe que a melhor aceleração às vezes começa com uma pausa.</text><text x="70" y="312" font-size="25" font-family="sans-serif" fill="#d5dbe6">O time sai do ginásio sem ouvir a torcida: agora só escuta a própria respiração.</text>
+</svg>

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StoryChapter" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://story/story_chapter.gd" id="1"]
+[ext_resource type="Texture2D" path="res://content/story/comics/chapter_04/page_001.svg" id="2"]
+[ext_resource type="Texture2D" path="res://content/story/comics/chapter_04/page_002.svg" id="3"]
+[ext_resource type="Texture2D" path="res://content/story/comics/chapter_04/page_003.svg" id="4"]
+
+[resource]
+script = ExtResource("1")
+chapter_id = &"chapter_04"
+title = "Maré Alta"
+pages = Array[Texture2D]([ExtResource("2"), ExtResource("3"), ExtResource("4")])
+next_match_id = &"match_04"

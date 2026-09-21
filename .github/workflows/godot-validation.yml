@@ -1,0 +1,43 @@
+name: Godot validation
+
+on:
+  push:
+    branches:
+      - main
+      - "feature/**"
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Import, contracts and boot
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Godot 4.7.2
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.7.2
+          use-dotnet: false
+          include-templates: false
+
+      - name: Show engine version
+        run: godot --version
+
+      - name: Validate repository resources
+        run: python3 tools/validate_project.py
+
+      - name: Import project
+        run: godot --headless --path . --import
+
+      - name: Run AI contracts
+        run: godot --headless --path . --script res://tests/test_ai_contracts.gd
+
+      - name: Boot main scene
+        run: godot --headless --path . --quit-after 5

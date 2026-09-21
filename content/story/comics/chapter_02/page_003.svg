@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+<rect width="1600" height="900" fill="#08120c"/><rect x="70" y="70" width="1460" height="760" rx="28" fill="#12251a" stroke="#f59e0b" stroke-width="6"/>
+<text x="110" y="150" fill="#fbbf24" font-size="34" font-family="sans-serif" font-weight="700">ANTES DO JOGO</text>
+<text x="110" y="275" fill="#ffffff" font-size="82" font-family="sans-serif" font-weight="900">KIRO OLHA PARA O MAPA.</text>
+<text x="110" y="370" fill="#e5e7eb" font-size="34" font-family="sans-serif">Dez pontos brilham na rota. O décimo parece uma cratera vermelha.</text>
+<text x="110" y="425" fill="#e5e7eb" font-size="34" font-family="sans-serif">Abaixo dele, um único nome: Drax.</text>
+<path d="M1050 630 L1160 500 L1260 570 L1390 360" fill="none" stroke="#f59e0b" stroke-width="16"/>
+<circle cx="1050" cy="630" r="24" fill="#22c55e"/><circle cx="1160" cy="500" r="24" fill="#22c55e"/><circle cx="1390" cy="360" r="34" fill="#dc2626"/>
+<text x="110" y="740" fill="#fbbf24" font-size="34" font-family="sans-serif" font-weight="700">JOGO 2: VALE FÓSSIL × CANOPY INSTITUTE</text>
+</svg>
