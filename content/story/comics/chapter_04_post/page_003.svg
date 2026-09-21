@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+<rect width="1280" height="720" fill="#07131b"/>
+<circle cx="1080" cy="100" r="180" fill="#22d3ee" opacity="0.16"/>
+<path d="M0 590 C260 500 430 680 700 570 S1050 480 1280 560 L1280 720 L0 720 Z" fill="#22d3ee" opacity="0.22"/>
+<text x="80" y="105" font-family="sans-serif" font-size="28" fill="#22d3ee">CAPÍTULO 4 • DEPOIS DA MARÉ</text>
+<text x="80" y="180" font-family="sans-serif" font-size="20" fill="#8da4b8">PÁGINA 3</text>
+<text x="80" y="300" font-family="sans-serif" font-size="48" font-weight="700" fill="#f5fbff">No mapa, Skycrest Academy acende acima das nuvens.</text>
+<foreignObject x="80" y="350" width="950" height="220"><div xmlns="http://www.w3.org/1999/xhtml" style="font-family:sans-serif;font-size:30px;line-height:1.35;color:#c8d9e8">Próximo desafio: jogar acima do aro.</div></foreignObject>
+<text x="80" y="650" font-family="sans-serif" font-size="18" fill="#68879e">Placeholder de HQ • substitua por arte final mantendo o mesmo nome de arquivo</text>
+</svg>

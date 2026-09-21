@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StoryChapter" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://story/story_chapter.gd" id="1_story"]
+[ext_resource type="Texture2D" path="res://content/story/comics/chapter_02/page_001.svg" id="2_p1"]
+[ext_resource type="Texture2D" path="res://content/story/comics/chapter_02/page_002.svg" id="3_p2"]
+[ext_resource type="Texture2D" path="res://content/story/comics/chapter_02/page_003.svg" id="4_p3"]
+
+[resource]
+script = ExtResource("1_story")
+chapter_id = &"chapter_02"
+title = "Raízes em Movimento"
+pages = Array[Texture2D]([ExtResource("2_p1"), ExtResource("3_p2"), ExtResource("4_p3")])
+next_match_id = &"match_02"

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+<rect width="1280" height="720" fill="#080812"/>
+<circle cx="1080" cy="110" r="205" fill="#a79cff" opacity="0.20"/>
+<path d="M80 590 L1200 590" stroke="#a79cff" stroke-width="8" opacity="0.30"/>
+<path d="M0 660 L220 560 L430 640 L660 520 L880 640 L1090 535 L1280 620 L1280 720 L0 720 Z" fill="#29225d" opacity="0.55"/>
+<text x="80" y="100" font-family="sans-serif" font-size="28" fill="#a79cff">CAPÍTULO 07 • DEPOIS DO ECLIPSE</text>
+<text x="80" y="155" font-family="sans-serif" font-size="19" fill="#71839f">PÁGINA 1</text>
+<text x="80" y="255" font-family="sans-serif" font-size="40" font-weight="700" fill="#f5fbff">AS LUZES VOLTAM. A QUADRA PARECE MAIOR.</text>
+<text x="80" y="350" font-family="sans-serif" font-size="26" fill="#c8d9e8">A última sirene atravessa o ginásio. Nyx sorri: a Vale Fóssil não</text>
+<text x="80" y="392" font-family="sans-serif" font-size="26" fill="#c8d9e8">parou de errar, mas deixou de oferecer o mesmo erro duas vezes.</text>
+<text x="80" y="434" font-family="sans-serif" font-size="26" fill="#c8d9e8">A sombra perdeu quando já não sabia qual resposta era verdadeira.</text>
+<text x="1120" y="660" font-family="sans-serif" font-size="24" fill="#a79cff">☄ 07</text>
+</svg>

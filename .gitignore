@@ -11,6 +11,10 @@ export_credentials.cfg
 # Imported translations (automatically generated from CSV files)
 *.translation
 
+# Local validation caches
+__pycache__/
+*.pyc
+
 # Mono-specific ignores
 .mono/
 data_*/

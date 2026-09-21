@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+<rect width="1600" height="900" fill="#07150d"/><rect x="70" y="70" width="1460" height="760" rx="28" fill="#10261a" stroke="#4ade80" stroke-width="6"/>
+<text x="110" y="150" fill="#86efac" font-size="34" font-family="sans-serif" font-weight="700">CANOPY INSTITUTE</text>
+<text x="110" y="270" fill="#ffffff" font-size="76" font-family="sans-serif" font-weight="900">FERN • MIRA • MOSS</text>
+<text x="110" y="360" fill="#d1fae5" font-size="34" font-family="sans-serif">Fern controla o ritmo. Mira corta para o aro. Moss ocupa a tinta como uma raiz antiga.</text>
+<text x="110" y="415" fill="#d1fae5" font-size="34" font-family="sans-serif">Na lateral, o técnico desenha apenas uma regra: “A bola nunca para.”</text>
+<circle cx="1180" cy="525" r="125" fill="#166534"/><circle cx="1340" cy="420" r="88" fill="#15803d"/><circle cx="1390" cy="630" r="105" fill="#14532d"/>
+<path d="M1030 540 Q1240 350 1450 555" fill="none" stroke="#facc15" stroke-width="18" stroke-dasharray="28 22"/>
+<text x="110" y="760" fill="#fef08a" font-size="30" font-family="sans-serif">Objetivo tático: aprender a trocar de defensor e atacar a cesta antes da ajuda chegar.</text>
+</svg>
