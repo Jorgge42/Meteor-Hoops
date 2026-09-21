@@ -23,6 +23,7 @@ var player_progression: Dictionary = {}
 var adaptive_profile: Dictionary = {}
 var sequence_profile: Dictionary = {}
 var semifinal_profile: Dictionary = {}
+var final_profile: Dictionary = {}
 var difficulty_name := "ADVENTURE"
 var shot_feedback_enabled := true
 var reduced_fx := false
@@ -118,6 +119,19 @@ var apex_silence_left := 0.0
 var apex_plan_announce_cooldown := 0.0
 var apex_last_announced_plan := ""
 
+# Tyrant Crown / final meta-strategy
+var crown_ai := TyrantCrownMetaAI.new()
+var crown_legacy := CrownLegacyTracker.new()
+var crown_edict: int = TyrantCrownMetaAI.Edict.BALANCED
+var crown_edict_left := 0.0
+var crown_select_cooldown := 0.0
+var crown_shattered_left := 0.0
+var crown_announce_cooldown := 0.0
+var crown_last_announced_edict := ""
+var crown_predictions_seen := 0
+var crown_predictions_correct := 0
+var crown_predictions_evaded := 0
+
 # Physical basketball / screen state
 var team_fouls := {TEAM_HOME: 0, TEAM_AWAY: 0}
 var screen_ballhandler: DinoPlayer
@@ -158,6 +172,7 @@ var tutorial_label: Label
 var nightclaw_label: Label
 var fossil_label: Label
 var apex_label: Label
+var crown_label: Label
 var halftime_layer: CanvasLayer
 var halftime_status_label: Label
 var camera: Camera3D
@@ -193,6 +208,16 @@ func _process(delta: float) -> void:
     apex_plan_announce_cooldown = maxf(0.0, apex_plan_announce_cooldown - delta)
     apex_ai.roar_active = apex_roar_left > 0.0
     apex_ai.silenced_active = apex_silence_left > 0.0
+    var crown_was_shattered := crown_shattered_left > 0.0
+    crown_shattered_left = maxf(0.0, crown_shattered_left - delta)
+    crown_select_cooldown = maxf(0.0, crown_select_cooldown - delta)
+    crown_announce_cooldown = maxf(0.0, crown_announce_cooldown - delta)
+    if crown_shattered_left <= 0.0:
+        crown_edict_left = maxf(0.0, crown_edict_left - delta)
+    crown_ai.crown_shattered = crown_shattered_left > 0.0
+    if crown_was_shattered and crown_shattered_left <= 0.0:
+        crown_edict = TyrantCrownMetaAI.Edict.BALANCED
+        crown_select_cooldown = crown_ai.reaction_time()
     transition_time_left = maxf(0.0, transition_time_left - delta)
     adaptation_announce_cooldown = maxf(0.0, adaptation_announce_cooldown - delta)
     fossil_announce_cooldown = maxf(0.0, fossil_announce_cooldown - delta)
@@ -374,6 +399,9 @@ func _setup_adaptive_ai() -> void:
         nightclaw_ai.difficulty = NightclawUtilityAI.Difficulty.ADVENTURE
     var match_seed := int(Time.get_unix_time_from_system()) + match_number * 9973
     nightclaw_ai.begin_match(match_seed, adaptive_profile)
+    if not adaptive_profile.is_empty():
+        tendency_model.from_dictionary(adaptive_profile)
+    nightclaw_ai.player_model = tendency_model
     if difficulty_name == "METEOR":
         fossil_ai.difficulty = FossilTechPredictiveAI.Difficulty.METEOR
     elif difficulty_name == "LEAGUE":
@@ -394,6 +422,17 @@ func _setup_adaptive_ai() -> void:
         composure_tracker.start_match(semifinal_profile)
     else:
         composure_tracker.from_dictionary(semifinal_profile)
+    if difficulty_name == "METEOR":
+        crown_ai.difficulty = TyrantCrownMetaAI.Difficulty.METEOR
+    elif difficulty_name == "LEAGUE":
+        crown_ai.difficulty = TyrantCrownMetaAI.Difficulty.LEAGUE
+    else:
+        crown_ai.difficulty = TyrantCrownMetaAI.Difficulty.ADVENTURE
+    crown_ai.begin_match(match_seed + 1010)
+    if match_number == 10:
+        crown_legacy.start_match(final_profile)
+    else:
+        crown_legacy.from_dictionary(final_profile)
     if not match_director.intervention_requested.is_connected(_on_director_intervention):
         match_director.intervention_requested.connect(_on_director_intervention)
 
@@ -431,6 +470,10 @@ func _is_player_energy_active(player: DinoPlayer) -> bool:
         if player.team_id == TEAM_AWAY:
             return apex_roar_left > 0.0
         return apex_silence_left > 0.0
+    if match_number == 10:
+        if player.team_id == TEAM_AWAY:
+            return crown_edict != TyrantCrownMetaAI.Edict.BALANCED
+        return crown_shattered_left > 0.0
     return false
 
 func _dict_to_player_data(entry: Dictionary) -> PlayerData:
@@ -609,6 +652,15 @@ func _build_hud() -> void:
     apex_label.visible = match_number == 9
     layer.add_child(apex_label)
 
+    crown_label = Label.new()
+    crown_label.position = Vector2(835, 195)
+    crown_label.size = Vector2(420, 185)
+    crown_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+    crown_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    crown_label.modulate = Color(1.0, 0.32, 0.28)
+    crown_label.visible = match_number == 10
+    layer.add_child(crown_label)
+
 func request_pass(passer: DinoPlayer, input_dir: Vector2) -> void:
     if passer == null or not passer.has_ball or not is_gameplay_live():
         return
@@ -680,7 +732,7 @@ func request_pass_fake(passer: DinoPlayer, input_dir: Vector2) -> void:
     direction = direction.normalized()
     var fake_target := passer.global_position + direction * 7.0
 
-    if match_number in [7, 8, 9] and passer.team_id == TEAM_HOME:
+    if match_number in [7, 8, 9, 10] and passer.team_id == TEAM_HOME:
         for defender_value in away_players:
             var defender := defender_value as DinoPlayer
             var lane := PassingLaneAnalyzer.distance_to_segment(
@@ -750,6 +802,65 @@ func _observe_home_action(action: StringName, succeeded: bool) -> void:
         _resolve_fossil_prediction(result)
     elif match_number == 9 and succeeded:
         _resolve_composure_event(composure_tracker.observe(action))
+    elif match_number == 10 and succeeded:
+        tendency_model.observe(action, true)
+        var prediction_result := sequence_model.observe(action)
+        var prediction_broken := false
+        if bool(prediction_result.get("had_prediction", false)):
+            crown_predictions_seen += 1
+            if bool(prediction_result.get("correct", false)):
+                crown_predictions_correct += 1
+            else:
+                crown_predictions_evaded += 1
+                prediction_broken = true
+        _resolve_crown_legacy(
+            crown_legacy.observe_action(action, prediction_broken)
+        )
+
+
+func _resolve_crown_legacy(result: Dictionary) -> void:
+    if match_number != 10 or not bool(result.get("broken", false)):
+        return
+    var broken_key := StringName(result.get("edict", &"balanced"))
+    crown_edict = TyrantCrownMetaAI.Edict.BALANCED
+    crown_edict_left = 0.0
+    crown_legacy.set_edict(&"balanced")
+    crown_last_announced_edict = ""
+    if bool(result.get("shattered", false)):
+        crown_shattered_left = GameTuning.CROWN_SHATTERED_DURATION
+        crown_ai.crown_shattered = true
+        crown_select_cooldown = crown_shattered_left
+        _set_event_feedback(
+            "☄ COROA PARTIDA ☄ • três decretos dominados • formação especial suspensa",
+            Color(0.34, 1.0, 0.82),
+            2.4
+        )
+    else:
+        crown_select_cooldown = (
+            GameTuning.CROWN_RESELECT_DELAY + crown_ai.reaction_time()
+        )
+        _set_event_feedback(
+            "DECRETO QUEBRADO: %s • LEGADO %d%%" % [
+                _crown_edict_name_from_key(broken_key),
+                roundi(crown_legacy.legacy_meter),
+            ],
+            Color(1.0, 0.72, 0.24),
+            2.0
+        )
+
+
+func _crown_edict_name_from_key(key: StringName) -> String:
+    match key:
+        &"iron_throne":
+            return "TRONO DE FERRO"
+        &"night_hunt":
+            return "CAÇADA NOTURNA"
+        &"written_fate":
+            return "DESTINO ESCRITO"
+        &"royal_command":
+            return "COMANDO REAL"
+        _:
+            return "COROA EQUILIBRADA"
 
 
 func _resolve_composure_event(result: Dictionary) -> void:
@@ -1322,6 +1433,17 @@ func _update_ball_state_and_capture() -> void:
             if nightclaw_takeover_left > 0.0:
                 intercept_radius += GameTuning.NIGHT_TAKEOVER_INTERCEPT_BONUS
             reaction_ready = ball.state_age_seconds() >= nightclaw_ai.reaction_time()
+        elif (
+            match_number == 10
+            and ball.last_touch_team == TEAM_HOME
+            and crown_edict in [
+                TyrantCrownMetaAI.Edict.NIGHT_HUNT,
+                TyrantCrownMetaAI.Edict.WRITTEN_FATE,
+            ]
+        ):
+            # The Crown reacts sooner when its visible decree calls for a read,
+            # but keeps the standard interception radius and ball physics.
+            reaction_ready = ball.state_age_seconds() >= crown_ai.reaction_time()
         var interceptor: DinoPlayer = null
         if reaction_ready:
             interceptor = _closest_opponent_to_ball(ball.last_touch_team, intercept_radius)
@@ -1421,11 +1543,21 @@ func _update_ai(delta: float) -> void:
                 and rebound_player.team_id == TEAM_AWAY
                 and apex_defensive_plan == ApexCoordinationAI.DefensivePlan.CONTROL_GLASS
             )
-            if close_to_paint and defensive_rebounder and (ironhorn_habit or apex_glass_habit or float(rebound_player.data.strength) >= 88.0):
+            var crown_glass_habit := (
+                match_number == 10
+                and rebound_player.team_id == TEAM_AWAY
+                and crown_edict in [
+                    TyrantCrownMetaAI.Edict.IRON_THRONE,
+                    TyrantCrownMetaAI.Edict.ROYAL_COMMAND,
+                ]
+            )
+            if close_to_paint and defensive_rebounder and (ironhorn_habit or apex_glass_habit or crown_glass_habit or float(rebound_player.data.strength) >= 88.0):
                 rebound_player.set_ai_box_out(true)
 
     if match_number == 9 and ball.state == MeteorBall.BallState.LOOSE:
         _update_apex_plan(null, rebound_window)
+    if match_number == 10 and ball.state == MeteorBall.BallState.LOOSE:
+        _update_crown_edict(null, rebound_window)
     if ball.state == MeteorBall.BallState.LOOSE:
         for player in all_players:
             if player == controlled_player:
@@ -1453,6 +1585,8 @@ func _update_ai(delta: float) -> void:
         holder = ball.holder as DinoPlayer
     if match_number == 9:
         _update_apex_plan(holder, rebound_window)
+    if match_number == 10:
+        _update_crown_edict(holder, rebound_window)
 
     for player in offense:
         if player == controlled_player:
@@ -1469,6 +1603,11 @@ func _update_ai(delta: float) -> void:
                 _apex_offball_anchor(player),
                 apex_offensive_plan == ApexCoordinationAI.OffensivePlan.CRASH_GLASS
             )
+        elif match_number == 10 and player.team_id == TEAM_AWAY:
+            player.set_ai_target(
+                _crown_offball_anchor(player),
+                crown_edict == TyrantCrownMetaAI.Edict.ROYAL_COMMAND
+            )
         else:
             player.set_ai_target(_spacing_anchor(player.team_id, player.roster_index), false)
 
@@ -1479,8 +1618,13 @@ func _update_ai(delta: float) -> void:
         var night_defense := match_number == 7 and defender.team_id == TEAM_AWAY
         var fossil_defense := match_number == 8 and defender.team_id == TEAM_AWAY
         var apex_defense := match_number == 9 and defender.team_id == TEAM_AWAY
+        var crown_defense := match_number == 10 and defender.team_id == TEAM_AWAY
         var defender_id := defender.get_instance_id()
-        if (night_defense or fossil_defense) and fake_defender_targets.has(defender_id):
+        var crown_bites_fake := (
+            crown_defense
+            and crown_edict == TyrantCrownMetaAI.Edict.NIGHT_HUNT
+        )
+        if (night_defense or fossil_defense or crown_bites_fake) and fake_defender_targets.has(defender_id):
             var fake_target: Vector3 = fake_defender_targets[defender_id]
             defender.set_ai_target(
                 fake_target,
@@ -1567,9 +1711,232 @@ func _update_ai(delta: float) -> void:
             ]
             defender.set_ai_target(apex_target, apex_sprint)
             continue
+        if crown_defense:
+            var crown_target := _crown_defensive_target(
+                defender,
+                assignment,
+                holder,
+                contain,
+                toward_hoop
+            )
+            var crown_sprint := crown_edict in [
+                TyrantCrownMetaAI.Edict.NIGHT_HUNT,
+                TyrantCrownMetaAI.Edict.WRITTEN_FATE,
+                TyrantCrownMetaAI.Edict.ROYAL_COMMAND,
+            ]
+            defender.set_ai_target(crown_target, crown_sprint)
+            continue
         if toward_hoop.length() > 0.01:
             contain += toward_hoop.normalized() * contain_gap
         defender.set_ai_target(contain, assignment == holder or ember_press)
+
+
+func _update_crown_edict(holder: DinoPlayer, rebound_window: bool) -> void:
+    if (
+        match_number != 10
+        or possession_team != TEAM_HOME
+        or crown_shattered_left > 0.0
+        or crown_select_cooldown > 0.0
+        or crown_edict_left > 0.0
+    ):
+        return
+
+    var hoop := _attack_hoop(TEAM_HOME)
+    var holder_distance := 9.0
+    var holder_strength := 50.0
+    if holder != null and holder.team_id == TEAM_HOME:
+        holder_distance = _flat_distance(holder.global_position, hoop)
+        holder_strength = float(holder.data.strength)
+    var drive_threat := clampf(1.0 - holder_distance / 8.5, 0.0, 1.0)
+    var post_threat := 0.0
+    if holder_distance <= GameTuning.POST_MAX_DISTANCE + 1.0:
+        post_threat = clampf((holder_strength - 42.0) / 58.0, 0.0, 1.0)
+    var paint_frequency := clampf(
+        tendency_model.tendency(&"drive")
+        + tendency_model.tendency(&"post_move")
+        + tendency_model.tendency(&"finish"),
+        0.0,
+        1.0
+    )
+    var pass_tendency := clampf(
+        tendency_model.tendency(&"normal_pass")
+        + tendency_model.tendency(&"cross_court_pass")
+        + tendency_model.tendency(&"lob_pass"),
+        0.0,
+        1.0
+    )
+    var forecast := sequence_model.predict_next()
+    var unavailable: Array = []
+    for key in crown_legacy.broken_edict_keys():
+        unavailable.append(_crown_edict_from_key(key))
+    var decision := crown_ai.choose_edict({
+        "drive_threat": drive_threat,
+        "post_threat": post_threat,
+        "paint_frequency": paint_frequency,
+        "pass_tendency": pass_tendency,
+        "lane_risk": last_pass_lane_risk,
+        "turnover_pressure": clampf(
+            float(turnovers[TEAM_HOME]) / maxf(1.0, float(possession_count)),
+            0.0,
+            1.0
+        ),
+        "prediction_available": bool(forecast.get("available", false)),
+        "prediction_confidence": float(forecast.get("confidence", 0.0)),
+        "screen_active": is_instance_valid(screen_screener),
+        "clock_pressure": clampf(
+            1.0 - shot_clock_left / GameTuning.SHOT_CLOCK,
+            0.0,
+            1.0
+        ),
+        "rebound_priority": 1.0 if rebound_window else 0.10,
+    }, unavailable)
+    var next_edict := int(decision.get(
+        "edict",
+        TyrantCrownMetaAI.Edict.BALANCED
+    ))
+    var changed := next_edict != crown_edict
+    crown_edict = next_edict
+    crown_edict_left = (
+        5.0
+        if crown_edict == TyrantCrownMetaAI.Edict.BALANCED
+        else GameTuning.CROWN_EDICT_DURATION
+    )
+    crown_select_cooldown = float(
+        decision.get("reaction_delay", crown_ai.reaction_time())
+    )
+    crown_legacy.set_edict(crown_ai.edict_key(crown_edict))
+    _announce_crown_edict(decision, changed)
+
+
+func _announce_crown_edict(decision: Dictionary, changed: bool) -> void:
+    var name := crown_ai.edict_name(crown_edict)
+    if (
+        crown_edict == TyrantCrownMetaAI.Edict.BALANCED
+        or not changed
+        or crown_announce_cooldown > 0.0
+        or name == crown_last_announced_edict
+    ):
+        return
+    crown_last_announced_edict = name
+    crown_announce_cooldown = 2.6
+    _set_event_feedback(
+        "DRAX DECRETA: %s • %s" % [
+            name,
+            String(decision.get("counterplay", "leia a ordem da Coroa")),
+        ],
+        Color(1.0, 0.28, 0.24),
+        2.2
+    )
+
+
+func _crown_edict_from_key(key: StringName) -> int:
+    match key:
+        &"iron_throne":
+            return TyrantCrownMetaAI.Edict.IRON_THRONE
+        &"night_hunt":
+            return TyrantCrownMetaAI.Edict.NIGHT_HUNT
+        &"written_fate":
+            return TyrantCrownMetaAI.Edict.WRITTEN_FATE
+        &"royal_command":
+            return TyrantCrownMetaAI.Edict.ROYAL_COMMAND
+        _:
+            return TyrantCrownMetaAI.Edict.BALANCED
+
+
+func _crown_defensive_target(
+    defender: DinoPlayer,
+    assignment: DinoPlayer,
+    holder: DinoPlayer,
+    contain: Vector3,
+    toward_hoop: Vector3
+) -> Vector3:
+    var target := contain
+    var protected_hoop := _defended_hoop(defender.team_id)
+    var active_edict := crown_edict
+    if crown_shattered_left > 0.0:
+        active_edict = TyrantCrownMetaAI.Edict.BALANCED
+    match active_edict:
+        TyrantCrownMetaAI.Edict.IRON_THRONE:
+            var paint_threat := holder if holder != null and assignment == holder else assignment
+            target = paint_threat.global_position
+            var paint_direction := protected_hoop - target
+            paint_direction.y = 0.0
+            if paint_direction.length() > 0.05:
+                target += paint_direction.normalized() * GameTuning.CROWN_PAINT_GAP
+        TyrantCrownMetaAI.Edict.NIGHT_HUNT:
+            if holder != null and assignment == holder:
+                target = holder.global_position
+                var pressure_direction := _attack_hoop(holder.team_id) - target
+                pressure_direction.y = 0.0
+                if pressure_direction.length() > 0.05:
+                    target += pressure_direction.normalized() * GameTuning.CROWN_PRESS_GAP
+            elif holder != null:
+                target = holder.global_position.lerp(assignment.global_position, 0.62)
+                target.y = 0.0
+        TyrantCrownMetaAI.Edict.WRITTEN_FATE:
+            var forecast := sequence_model.predict_next()
+            var predicted := StringName(forecast.get("action", &""))
+            if bool(forecast.get("available", false)) and String(predicted).contains("pass") and holder != null and assignment != holder:
+                target = holder.global_position.lerp(assignment.global_position, 0.58)
+                target.y = 0.0
+            elif predicted in [&"drive", &"post_move", &"finish"]:
+                target = assignment.global_position.lerp(protected_hoop, 0.32)
+                target.y = 0.0
+            elif predicted == &"screen" and is_instance_valid(screen_ballhandler) and is_instance_valid(screen_screener):
+                if assignment == screen_ballhandler:
+                    target = screen_screener.global_position
+                elif assignment == screen_screener:
+                    target = screen_ballhandler.global_position
+            elif predicted in [&"jump_shot", &"three_point_shot"]:
+                target = assignment.global_position
+                if toward_hoop.length() > 0.05:
+                    target += toward_hoop.normalized() * 0.42
+            elif toward_hoop.length() > 0.05:
+                target += toward_hoop.normalized() * GameTuning.AI_CONTAIN_GAP
+        TyrantCrownMetaAI.Edict.ROYAL_COMMAND:
+            if is_instance_valid(screen_ballhandler) and is_instance_valid(screen_screener):
+                if assignment == screen_ballhandler:
+                    target = screen_screener.global_position
+                elif assignment == screen_screener:
+                    target = screen_ballhandler.global_position
+            elif holder != null and assignment == holder:
+                target = holder.global_position
+                var command_direction := _attack_hoop(holder.team_id) - target
+                command_direction.y = 0.0
+                if command_direction.length() > 0.05:
+                    target += command_direction.normalized() * GameTuning.CROWN_PRESS_GAP
+            else:
+                target = assignment.global_position.lerp(protected_hoop, 0.22)
+                target.y = 0.0
+        _:
+            if toward_hoop.length() > 0.05:
+                target += toward_hoop.normalized() * GameTuning.AI_CONTAIN_GAP
+    target.x = clampf(target.x, -6.2, 6.2)
+    target.z = clampf(target.z, -11.4, 11.4)
+    return target
+
+
+func _crown_offball_anchor(player: DinoPlayer) -> Vector3:
+    var index := player.roster_index
+    match crown_edict:
+        TyrantCrownMetaAI.Edict.IRON_THRONE:
+            if index == 2:
+                return Vector3(-1.3, 0.0, 9.5)
+            return Vector3(4.7 if index == 1 else -4.7, 0.0, 6.2)
+        TyrantCrownMetaAI.Edict.NIGHT_HUNT:
+            if index == 1:
+                return Vector3(5.2, 0.0, 5.8)
+            return Vector3(-5.2, 0.0, 6.8)
+        TyrantCrownMetaAI.Edict.WRITTEN_FATE:
+            if index == 1:
+                return Vector3(4.4, 0.0, 6.0)
+            return Vector3(-4.4, 0.0, 7.0)
+        TyrantCrownMetaAI.Edict.ROYAL_COMMAND:
+            if index == 1:
+                return Vector3(2.5, 0.0, 8.7)
+            return Vector3(-2.1, 0.0, 9.2)
+        _:
+            return _spacing_anchor(TEAM_AWAY, index)
 
 
 func _update_apex_plan(holder: DinoPlayer, rebound_window: bool) -> void:
@@ -2008,6 +2375,7 @@ func _update_ai_ballhandler(player: DinoPlayer) -> void:
     var night_attack := match_number == 7 and player.team_id == TEAM_AWAY
     var fossil_attack := match_number == 8 and player.team_id == TEAM_AWAY
     var apex_attack := match_number == 9 and player.team_id == TEAM_AWAY
+    var crown_attack := match_number == 10 and player.team_id == TEAM_AWAY
     var night_transition := (
         night_attack
         and transition_team == TEAM_AWAY
@@ -2051,6 +2419,9 @@ func _update_ai_ballhandler(player: DinoPlayer) -> void:
     elif apex_attack:
         delay_min = GameTuning.APEX_AI_MIN_DELAY
         delay_max = GameTuning.APEX_AI_MAX_DELAY
+    elif crown_attack:
+        delay_min = GameTuning.CROWN_AI_MIN_DELAY
+        delay_max = GameTuning.CROWN_AI_MAX_DELAY
     var ai_factor := _difficulty_ai_multiplier() if player.team_id == TEAM_AWAY else 1.0
     delay_min /= ai_factor
     delay_max /= ai_factor
@@ -2066,6 +2437,9 @@ func _update_ai_ballhandler(player: DinoPlayer) -> void:
     var shot_contest_limit := 0.72 if ember_attack else 0.62
     var sky_target := _best_lob_target(player) if sky_attack else null
     var sky_lob_ready := sky_attack and sky_target != null and _flat_distance(sky_target.global_position, hoop) <= GameTuning.ALLEY_TARGET_MAX_DISTANCE
+    if crown_attack and _execute_crown_offense(player, to_hoop, contest):
+        ai_action_cooldowns[id] = rng.randf_range(delay_min, delay_max)
+        return
     if apex_attack and _execute_apex_offense(player, to_hoop, contest):
         ai_action_cooldowns[id] = rng.randf_range(delay_min, delay_max)
         return
@@ -2278,6 +2652,135 @@ func _apex_pass_to(passer: DinoPlayer, receiver: DinoPlayer) -> void:
     feedback_label.text = "APEX EXECUTA %s" % apex_ai.offensive_plan_name(
         apex_offensive_plan
     )
+
+
+func _execute_crown_offense(
+    player: DinoPlayer,
+    to_hoop: Vector3,
+    contest: float
+) -> bool:
+    if crown_shattered_left > 0.0:
+        return false
+
+    var receiver := _best_ai_pass_target(player)
+    match crown_edict:
+        TyrantCrownMetaAI.Edict.IRON_THRONE:
+            if (
+                screen_call_cooldown <= 0.0
+                and not is_instance_valid(screen_screener)
+                and to_hoop.length() > 4.2
+            ):
+                request_screen(player)
+                return true
+            if to_hoop.length() <= GameTuning.POST_MAX_DISTANCE and contest >= 0.12:
+                request_post_move(player)
+                return true
+            if to_hoop.length() <= GameTuning.FINISH_MAX_DISTANCE and contest < 0.76:
+                request_finish(player)
+                return true
+        TyrantCrownMetaAI.Edict.NIGHT_HUNT:
+            var transition_receiver := _best_transition_target(player)
+            if transition_receiver != null:
+                _crown_pass_to(player, transition_receiver)
+                return true
+            if receiver != null and (contest >= 0.26 or _openness_score(receiver) >= 0.58):
+                _crown_pass_to(player, receiver)
+                return true
+            if to_hoop.length() <= GameTuning.FINISH_MAX_DISTANCE and contest < 0.70:
+                request_finish(player)
+                return true
+        TyrantCrownMetaAI.Edict.WRITTEN_FATE:
+            var finish_ev := -1.0
+            if to_hoop.length() <= GameTuning.FINISH_MAX_DISTANCE:
+                finish_ev = clampf(
+                    0.52
+                    + float(player.data.shooting) * 0.0022
+                    + float(player.data.strength) * 0.0014
+                    - contest * 0.34,
+                    0.18,
+                    0.96
+                ) * 2.0
+            var shot_ev := -1.0
+            if to_hoop.length() <= 8.0:
+                var shot_value := 3.0 if to_hoop.length() >= GameTuning.THREE_POINT_DISTANCE else 2.0
+                var range_penalty := maxf(0.0, to_hoop.length() - 4.0) * 0.025
+                shot_ev = clampf(
+                    0.30
+                    + float(player.data.shooting) * 0.0052
+                    - contest * 0.48
+                    - range_penalty,
+                    0.12,
+                    0.88
+                ) * shot_value
+            var pass_ev := -1.0
+            if receiver != null:
+                pass_ev = (
+                    0.48
+                    + _openness_score(receiver) * 0.46
+                    + float(player.data.passing) * 0.0015
+                )
+            var choice := fossil_ai.choose_offensive_action({
+                "finish_ev": finish_ev,
+                "shot_ev": shot_ev,
+                "pass_ev": pass_ev,
+            })
+            match StringName(choice.get("action", &"pass")):
+                &"finish":
+                    request_finish(player)
+                    return true
+                &"shot":
+                    var timing := clampf(
+                        0.62
+                        + float(player.data.shooting) / 260.0
+                        + rng.randf_range(-0.06, 0.06),
+                        0.50,
+                        0.97
+                    )
+                    _release_shot(player, timing)
+                    return true
+                _:
+                    if receiver != null:
+                        _crown_pass_to(player, receiver)
+                        return true
+        TyrantCrownMetaAI.Edict.ROYAL_COMMAND:
+            if (
+                screen_call_cooldown <= 0.0
+                and not is_instance_valid(screen_screener)
+                and to_hoop.length() > 4.0
+            ):
+                request_screen(player)
+                return true
+            if receiver != null and contest >= 0.30:
+                _crown_pass_to(player, receiver)
+                return true
+            if to_hoop.length() <= GameTuning.FINISH_MAX_DISTANCE and contest < 0.72:
+                request_finish(player)
+                return true
+        _:
+            return false
+
+    if receiver != null:
+        _crown_pass_to(player, receiver)
+        return true
+    return false
+
+
+func _crown_pass_to(passer: DinoPlayer, receiver: DinoPlayer) -> void:
+    _prepare_pass_context(passer, receiver, false)
+    last_passer_by_team[passer.team_id] = passer
+    passer.release_ball()
+    var pass_speed := lerpf(
+        GameTuning.PASS_SPEED,
+        GameTuning.STRONG_PASS_SPEED,
+        float(passer.data.passing) / 100.0
+    )
+    ball.launch_pass(
+        receiver.global_position + Vector3.UP * 1.02,
+        receiver,
+        pass_speed,
+        passer.team_id
+    )
+    feedback_label.text = "A COROA EXECUTA %s" % crown_ai.edict_name(crown_edict)
 
 
 func _best_transition_target(passer: DinoPlayer) -> DinoPlayer:
@@ -2526,6 +3029,12 @@ func _give_ball_to(player: DinoPlayer, reason: String) -> void:
             )
         elif player.team_id == TEAM_HOME and shot_team_before == TEAM_AWAY:
             _resolve_composure_event(composure_tracker.reward_defensive_stop())
+    if (
+        match_number == 10
+        and player.team_id == TEAM_HOME
+        and reason in ["RECEPÇÃO", "PASSE ALTO"]
+    ):
+        _resolve_crown_legacy(crown_legacy.observe_completed_pass())
     if player.team_id == TEAM_HOME:
         _select_controlled(player)
     var id := player.get_instance_id()
@@ -2598,6 +3107,14 @@ func _start_possession(team: int, new_clock: float = GameTuning.SHOT_CLOCK) -> v
         apex_defensive_plan = ApexCoordinationAI.DefensivePlan.BALANCED
         apex_offensive_plan = ApexCoordinationAI.OffensivePlan.SPREAD
         apex_plan_cooldown = apex_ai.reaction_time()
+    if possession_count > 0 and match_number == 10:
+        tendency_model.finish_possession()
+        sequence_model.finish_possession()
+    elif possession_count == 0 and match_number == 10:
+        sequence_model.begin_possession()
+        crown_select_cooldown = crown_ai.reaction_time()
+    if match_number == 10:
+        crown_legacy.begin_possession()
     possession_count += 1
     turnover_happened_this_possession = false
     home_protection_observed_this_possession = false
@@ -2934,6 +3451,10 @@ func _on_basket_scored(_detector_points: int, basket_id: StringName) -> void:
             _resolve_composure_event(composure_tracker.reward_safe_possession())
         elif last_shot_type in ["DUNK", "LAYUP"]:
             _gain_apex_roar(GameTuning.APEX_PAINT_SCORE_GAIN, "cesta no garrafão")
+    elif match_number == 10 and scoring_team == TEAM_HOME:
+        _resolve_crown_legacy(
+            crown_legacy.observe_home_score(last_shot_type)
+        )
     _play_sfx("res://audio/sfx/basket.wav")
 
     await get_tree().create_timer(GameTuning.DEAD_BALL_DELAY).timeout
@@ -3083,6 +3604,38 @@ func _refresh_match_hud() -> void:
                 composure_tracker.current_chain,
             ]
             apex_label.modulate = Color(1.0, 0.78, 0.24)
+    if is_instance_valid(crown_label) and match_number == 10:
+        var seals := crown_legacy.broken_edict_keys().size()
+        if crown_shattered_left > 0.0:
+            crown_label.text = "☄ COROA PARTIDA ☄\n%.1fs • DECRETOS SUSPENSOS\nLEGADO: %d%% • formação equilibrada\nAtaque agora: antes que Drax se reorganize" % [
+                crown_shattered_left,
+                roundi(crown_legacy.legacy_meter),
+            ]
+            crown_label.modulate = Color(0.34, 1.0, 0.82)
+        elif crown_edict == TyrantCrownMetaAI.Edict.BALANCED:
+            crown_label.text = "COROA EQUILIBRADA\nDrax está lendo a quadra…\nLEGADO: %d%% • SELOS: %d/3\nPróximo decreto em %.1fs" % [
+                roundi(crown_legacy.legacy_meter),
+                seals,
+                maxf(crown_edict_left, crown_select_cooldown),
+            ]
+            crown_label.modulate = Color(1.0, 0.52, 0.42)
+        else:
+            var prediction_line := ""
+            if crown_edict == TyrantCrownMetaAI.Edict.WRITTEN_FATE:
+                var crown_forecast := sequence_model.predict_next()
+                prediction_line = "\nPREVISÃO: %s • %d%%" % [
+                    _tendency_label(StringName(crown_forecast.get("action", &""))),
+                    roundi(float(crown_forecast.get("confidence", 0.0)) * 100.0),
+                ]
+            crown_label.text = "DRAX DECRETA: %s • %.1fs\nLEGADO: %d%% • SELOS: %d/3%s\n%s" % [
+                crown_ai.edict_name(crown_edict),
+                crown_edict_left,
+                roundi(crown_legacy.legacy_meter),
+                seals,
+                prediction_line,
+                crown_ai.break_hint(crown_edict),
+            ]
+            crown_label.modulate = Color(1.0, 0.28, 0.24)
     if match_state == MatchState.FREE_THROW:
         period_label.text = "LANCE LIVRE"
         timer_label.text = _format_time(period_time_left)
@@ -3211,6 +3764,17 @@ func _show_halftime() -> void:
         apex_defensive_plan = ApexCoordinationAI.DefensivePlan.BALANCED
         apex_offensive_plan = ApexCoordinationAI.OffensivePlan.SPREAD
         apex_plan_cooldown = 0.0
+    elif match_number == 10:
+        tendency_model.reset_short_term_memory()
+        sequence_model.reset_short_term_memory()
+        crown_legacy.reset_short_term_memory()
+        crown_legacy.set_edict(&"balanced")
+        crown_edict = TyrantCrownMetaAI.Edict.BALANCED
+        crown_edict_left = 0.0
+        crown_select_cooldown = crown_ai.reaction_time()
+        crown_shattered_left = 0.0
+        crown_ai.crown_shattered = false
+        crown_last_announced_edict = ""
     if is_instance_valid(halftime_layer):
         halftime_layer.queue_free()
     halftime_layer = CanvasLayer.new()
@@ -3391,6 +3955,7 @@ func get_home_stats_summary() -> Dictionary:
         "adaptive_profile": tendency_model.to_dictionary(),
         "sequence_profile": sequence_model.to_dictionary(),
         "semifinal_profile": composure_tracker.to_dictionary(),
+        "final_profile": crown_legacy.to_dictionary(),
         "prediction_summary": {
             "seen": fossil_predictions_seen,
             "correct": fossil_predictions_correct,
@@ -3402,6 +3967,15 @@ func get_home_stats_summary() -> Dictionary:
             "roars_silenced": composure_tracker.roars_silenced,
             "defensive_plan": apex_ai.defensive_plan_name(apex_defensive_plan),
             "offensive_plan": apex_ai.offensive_plan_name(apex_offensive_plan),
+        },
+        "crown_summary": {
+            "edicts_broken": crown_legacy.broken_this_match,
+            "crowns_shattered": crown_legacy.crowns_shattered,
+            "legacy_meter": snappedf(crown_legacy.legacy_meter, 0.1),
+            "predictions_seen": crown_predictions_seen,
+            "predictions_correct": crown_predictions_correct,
+            "predictions_evaded": crown_predictions_evaded,
+            "active_edict": crown_ai.edict_name(crown_edict),
         },
     }
 

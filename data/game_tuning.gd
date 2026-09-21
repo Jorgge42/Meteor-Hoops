@@ -169,6 +169,15 @@ const APEX_FORCED_TURNOVER_GAIN := 16.0
 const APEX_PAINT_SCORE_GAIN := 12.0
 const APEX_HOME_SCORE_PENALTY := 18.0
 
+# Tyrant Crown / final boss. Edicts change intent and positioning, never outcomes.
+const CROWN_AI_MIN_DELAY := 0.42
+const CROWN_AI_MAX_DELAY := 0.78
+const CROWN_PRESS_GAP := 0.58
+const CROWN_PAINT_GAP := 1.42
+const CROWN_EDICT_DURATION := 16.0
+const CROWN_RESELECT_DELAY := 1.20
+const CROWN_SHATTERED_DURATION := 7.0
+
 # Difficulty multipliers
 const DIFFICULTY_ADVENTURE_AI := 0.90
 const DIFFICULTY_LEAGUE_AI := 1.00

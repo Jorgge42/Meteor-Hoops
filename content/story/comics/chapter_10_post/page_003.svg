@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#07152e"/><stop offset="0.65" stop-color="#0b4650"/><stop offset="1" stop-color="#102f29"/></linearGradient><radialGradient id="meteor"><stop stop-color="#ffffff"/><stop offset="0.22" stop-color="#5eead4"/><stop offset="1" stop-color="#5eead4" stop-opacity="0"/></radialGradient></defs>
+<rect width="1280" height="720" fill="url(#sky)"/>
+<g fill="#f8fafc"><circle cx="115" cy="110" r="2"/><circle cx="246" cy="185" r="3"/><circle cx="410" cy="92" r="2"/><circle cx="610" cy="160" r="2"/><circle cx="810" cy="82" r="3"/><circle cx="1030" cy="175" r="2"/><circle cx="1160" cy="95" r="3"/></g>
+<path d="M800 40L545 282" stroke="#5eead4" stroke-width="22" opacity="0.22"/><circle cx="535" cy="292" r="105" fill="url(#meteor)"/>
+<path d="M0 600L145 475L280 555L425 420L570 560L720 440L860 560L1020 430L1180 548L1280 485V720H0Z" fill="#143f37"/>
+<path d="M560 400H720L700 535H580Z" fill="#fbbf24" stroke="#fff2a8" stroke-width="6"/><path d="M590 395L610 330L640 390L670 330L695 395Z" fill="#fde047"/>
+<text x="70" y="82" font-family="sans-serif" font-size="28" fill="#73f2df">EPÍLOGO • DEPOIS DA COROA</text>
+<text x="70" y="132" font-family="sans-serif" font-size="19" fill="#b5c4ce">PÁGINA 3</text>
+<text x="640" y="615" text-anchor="middle" font-family="sans-serif" font-size="42" font-weight="700" fill="#ffffff">A ROTA VIROU CONSTELAÇÃO.</text>
+<text x="640" y="663" text-anchor="middle" font-family="sans-serif" font-size="26" fill="#b9fff4">VALE FÓSSIL • CAMPEÃ DO TROFÉU METEORO</text>
+<text x="1160" y="690" text-anchor="end" font-family="sans-serif" font-size="23" fill="#73f2df">FIM</text>
+</svg>

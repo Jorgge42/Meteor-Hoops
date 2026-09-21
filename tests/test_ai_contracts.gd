@@ -8,6 +8,8 @@ const SequenceModel = preload("res://systems/ai/sequence_prediction_model.gd")
 const FossilAI = preload("res://systems/ai/fossil_tech_predictive_ai.gd")
 const ApexAI = preload("res://systems/ai/apex_coordination_ai.gd")
 const Composure = preload("res://systems/ai/composure_tracker.gd")
+const CrownAI = preload("res://systems/ai/tyrant_crown_meta_ai.gd")
+const CrownLegacy = preload("res://systems/ai/crown_legacy_tracker.gd")
 const Catalog = preload("res://data/match_catalog.gd")
 const Saves = preload("res://systems/save_manager.gd")
 
@@ -33,6 +35,10 @@ func _init() -> void:
     _test_composure_profile_round_trip_is_bounded()
     _test_apex_plan_and_fairness_contract()
     _test_game_nine_and_save_contract()
+    _test_crown_edicts_and_fairness_contract()
+    _test_crown_legacy_breaks_three_distinct_edicts()
+    _test_crown_profile_round_trip_is_bounded()
+    _test_game_ten_and_save_contract()
 
     if failures.is_empty():
         print("AI CONTRACTS: %d checks passed" % checks)
@@ -158,7 +164,7 @@ func _test_game_seven_and_save_contract() -> void:
         "A HQ pós-jogo do capítulo 7 deve existir."
     )
     var profile: Dictionary = Saves.default_profile()
-    _expect(int(profile.get("version", 0)) == 8, "O save padrão deve usar a versão 8.")
+    _expect(int(profile.get("version", 0)) == 9, "O save padrão deve usar a versão 9.")
     _expect(
         typeof(profile.get("adaptive_profile")) == TYPE_DICTIONARY,
         "O save deve conter um perfil adaptativo local."
@@ -299,7 +305,7 @@ func _test_game_eight_and_save_contract() -> void:
         "A HQ pós-jogo do capítulo 8 deve existir."
     )
     var profile: Dictionary = Saves.default_profile()
-    _expect(int(profile.get("version", 0)) == 8, "O save padrão deve usar a versão 8.")
+    _expect(int(profile.get("version", 0)) == 9, "O save padrão deve usar a versão 9.")
     _expect(
         typeof(profile.get("sequence_profile")) == TYPE_DICTIONARY,
         "O save deve conter o perfil agregado de sequências."
@@ -420,10 +426,131 @@ func _test_game_nine_and_save_contract() -> void:
     )
     _expect(Catalog.away_roster(9).size() == 5, "A Apex Dominion deve ter cinco atletas.")
     var profile: Dictionary = Saves.default_profile()
-    _expect(int(profile.get("version", 0)) == 8, "A semifinal deve usar o save v8.")
+    _expect(int(profile.get("version", 0)) == 9, "A semifinal deve migrar para o save v9.")
     _expect(
         typeof(profile.get("semifinal_profile")) == TYPE_DICTIONARY,
         "O save deve conter o perfil agregado da semifinal."
+    )
+
+
+func _test_crown_edicts_and_fairness_contract() -> void:
+    var ai = CrownAI.new()
+    ai.begin_match(1010)
+    for difficulty in [
+        CrownAI.Difficulty.ADVENTURE,
+        CrownAI.Difficulty.LEAGUE,
+        CrownAI.Difficulty.METEOR,
+    ]:
+        ai.difficulty = difficulty
+        _expect(
+            ai.reaction_time() >= CrownAI.REACTION_FLOOR,
+            "A Coroa deve respeitar o piso de reação legível."
+        )
+    var paint_decision: Dictionary = ai.choose_edict({
+        "drive_threat": 1.0,
+        "post_threat": 1.0,
+        "paint_frequency": 1.0,
+        "pass_tendency": 0.0,
+        "lane_risk": 0.0,
+        "turnover_pressure": 0.0,
+        "prediction_available": false,
+        "prediction_confidence": 0.0,
+        "screen_active": false,
+        "clock_pressure": 0.0,
+        "rebound_priority": 1.0,
+    })
+    _expect(
+        int(paint_decision.get("edict", -1)) == CrownAI.Edict.IRON_THRONE,
+        "Ameaça dominante no garrafão deve convocar o Trono de Ferro."
+    )
+    var prediction_decision: Dictionary = ai.choose_edict({
+        "drive_threat": 0.0,
+        "post_threat": 0.0,
+        "paint_frequency": 0.0,
+        "pass_tendency": 0.0,
+        "lane_risk": 0.0,
+        "turnover_pressure": 0.0,
+        "prediction_available": true,
+        "prediction_confidence": 1.0,
+        "screen_active": false,
+        "clock_pressure": 0.0,
+        "rebound_priority": 0.0,
+    })
+    _expect(
+        int(prediction_decision.get("edict", -1)) == CrownAI.Edict.WRITTEN_FATE,
+        "Uma previsão forte deve convocar Destino Escrito."
+    )
+    var contract: Dictionary = ai.fairness_contract()
+    _expect(bool(contract.get("visible_edict", false)), "Todo decreto deve aparecer no HUD.")
+    _expect(
+        bool(contract.get("visible_break_condition", false)),
+        "Toda condição de quebra deve ser informada ao jogador."
+    )
+    for forbidden in ["shot_probability", "ball_physics", "hidden_attribute_boost", "future_input_read"]:
+        _expect(
+            not bool(contract.get(forbidden, true)),
+            "A Tyrant Crown não pode habilitar %s." % forbidden
+        )
+
+
+func _test_crown_legacy_breaks_three_distinct_edicts() -> void:
+    var tracker = CrownLegacy.new()
+    tracker.start_match()
+    tracker.set_edict(&"iron_throne")
+    var iron: Dictionary = tracker.observe_home_score("JUMPER")
+    _expect(bool(iron.get("broken", false)), "Arremesso convertido deve quebrar o Trono de Ferro.")
+    tracker.set_edict(&"night_hunt")
+    tracker.observe_action(&"pass_fake")
+    var night: Dictionary = tracker.observe_completed_pass()
+    _expect(bool(night.get("broken", false)), "Finta seguida de passe deve quebrar a Caçada Noturna.")
+    tracker.set_edict(&"royal_command")
+    tracker.observe_action(&"screen")
+    tracker.observe_action(&"normal_pass")
+    tracker.observe_action(&"drive")
+    var royal: Dictionary = tracker.observe_home_score("LAYUP")
+    _expect(bool(royal.get("shattered", false)), "Três decretos distintos devem partir a Coroa.")
+    _expect(tracker.crowns_shattered == 1, "A quebra da Coroa deve ser persistida.")
+    _expect(is_zero_approx(tracker.legacy_meter), "O Legado reinicia depois de partir a Coroa.")
+
+
+func _test_crown_profile_round_trip_is_bounded() -> void:
+    var tracker = CrownLegacy.new()
+    tracker.from_dictionary({
+        "games": 999999,
+        "best_edicts_broken": 999999,
+        "crowns_shattered": 999999,
+    })
+    var saved: Dictionary = tracker.to_dictionary()
+    _expect(int(saved.get("games", 0)) == 9999, "Partidas da final devem ser limitadas no save.")
+    _expect(
+        int(saved.get("best_edicts_broken", 0)) == 999,
+        "Decretos quebrados devem ser limitados no save."
+    )
+    var restored = CrownLegacy.new()
+    restored.from_dictionary(saved)
+    _expect(
+        int(restored.to_dictionary().get("crowns_shattered", 0)) == 9999,
+        "O perfil da final deve sobreviver ao round-trip."
+    )
+
+
+func _test_game_ten_and_save_contract() -> void:
+    var match_ten: Dictionary = Catalog.get_match(10)
+    _expect(bool(match_ten.get("playable", false)), "O Jogo 10 deve estar jogável.")
+    _expect(
+        ResourceLoader.exists(String(match_ten.get("pre_chapter", ""))),
+        "A HQ pré-jogo do capítulo 10 deve existir."
+    )
+    _expect(
+        ResourceLoader.exists(String(match_ten.get("post_chapter", ""))),
+        "A HQ pós-jogo do capítulo 10 deve existir."
+    )
+    _expect(Catalog.away_roster(10).size() == 5, "A Tyrant Crown deve ter cinco atletas.")
+    var profile: Dictionary = Saves.default_profile()
+    _expect(int(profile.get("version", 0)) == 9, "A final deve usar o save v9.")
+    _expect(
+        typeof(profile.get("final_profile")) == TYPE_DICTIONARY,
+        "O save deve conter o perfil agregado da final."
     )
 
 

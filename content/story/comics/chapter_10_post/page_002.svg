@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#22080b"/><stop offset="0.52" stop-color="#111827"/><stop offset="1" stop-color="#06343b"/></linearGradient></defs>
+<rect width="1280" height="720" fill="url(#bg)"/>
+<g opacity="0.92"><circle cx="380" cy="285" r="88" fill="#a52a27"/><path d="M292 368L332 610H430L468 368Z" fill="#5c1217"/><circle cx="870" cy="300" r="72" fill="#38c7b4"/><path d="M795 370L830 610H910L947 370Z" fill="#0e6d67"/></g>
+<path d="M300 192L338 112L380 192L422 112L460 192V232H300Z" fill="#f04a39" opacity="0.45"/>
+<path d="M470 465Q640 565 785 462" fill="none" stroke="#f8fafc" stroke-width="7" stroke-dasharray="14 12" opacity="0.58"/>
+<text x="68" y="80" font-family="sans-serif" font-size="28" fill="#ff8067">EPÍLOGO • DEPOIS DA COROA</text>
+<text x="68" y="130" font-family="sans-serif" font-size="19" fill="#aeb8c5">PÁGINA 2</text>
+<text x="640" y="190" text-anchor="middle" font-family="sans-serif" font-size="34" font-weight="700" fill="#f8fafc">DRAX ABAIXA A CABEÇA — SÓ UMA VEZ.</text>
+<text x="640" y="650" text-anchor="middle" font-family="sans-serif" font-size="27" fill="#dbeafe">“UM REI PREVÊ. UM CAMPEÃO ESCOLHE DE NOVO.”</text>
+<text x="1160" y="684" text-anchor="end" font-family="sans-serif" font-size="23" fill="#ff8067">FIM • 02</text>
+</svg>

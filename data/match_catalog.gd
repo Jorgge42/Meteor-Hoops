@@ -56,7 +56,14 @@ const MATCHES := [
         "pre_chapter": "res://data/chapter_09.tres",
         "post_chapter": "res://data/chapter_09_post.tres"
     },
-    {"id": "match_10", "number": 10, "title": "O METEORO", "school": "TYRANT CROWN ACADEMY", "subtitle": "Final. Drax espera no centro da quadra pelo Troféu Meteoro.", "color": "dc2626", "playable": false}
+    {
+        "id": "match_10", "number": 10, "title": "O METEORO",
+        "school": "TYRANT CROWN ACADEMY",
+        "subtitle": "Final. Drax reúne força, leitura, previsão e comando na última prova da Rota.",
+        "color": "dc2626", "playable": true,
+        "pre_chapter": "res://data/chapter_10.tres",
+        "post_chapter": "res://data/chapter_10_post.tres"
+    }
 ]
 
 static func get_match(number: int) -> Dictionary:
@@ -121,6 +128,14 @@ static func _apply_progression_bonus(entry: Dictionary, progress: Dictionary) ->
     return result
 
 static func away_roster(match_number: int) -> Array:
+    if match_number == 10:
+        return [
+            _player("drax", "Drax", "Tyrannosaurus", "Armador", 88, 94, 96, 97, 99, 2.30, "Coroa do Meteoro", "Capitão da Tyrant Crown. Lê a partida inteira e transforma cada escola vencida pela Vale em um novo decreto."),
+            _player("regalia", "Regalia", "Utahraptor", "Ala", 96, 93, 88, 95, 76, 1.94, "Lâmina Rubra", "Ala de elite que fecha linhas de passe, troca marcações e pune qualquer ajuda longa."),
+            _player("colossus", "Colossus", "Argentinosaurus", "Pivô", 48, 74, 82, 98, 99, 2.35, "Trono Vivo", "Pivô de escala estilizada. Ocupa o garrafão com posição, passe curto e box-out disciplinado."),
+            _player("vanta", "Vanta", "Troodon", "Armador", 94, 88, 97, 92, 44, 1.74, "Olho da Coroa", "Reserva cerebral que acelera previsões e encontra o passe de maior valor."),
+            _player("sovereign", "Sovereign", "Spinosaurus", "Pivô", 72, 84, 86, 96, 98, 2.33, "Maré Imperial", "Reserva versátil para post, proteção do aro e inversões rápidas na formação final.")
+        ]
     if match_number == 9:
         return [
             _player("rexon", "Rexon", "Tyrannosaurus", "Armador", 82, 84, 91, 94, 98, 2.22, "Comando Alfa", "Capitão da Apex Dominion. Convoca o plano coletivo e transforma força em decisões coordenadas."),
