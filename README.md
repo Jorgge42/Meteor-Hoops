@@ -147,6 +147,7 @@ godot --headless --path . --script res://tests/test_ai_contracts.gd
 - `docs/FOSSIL_TECH_DESIGN.md` — previsão, falsa certeza e contrajogo do Jogo 8.
 - `docs/AI_STRATEGY.md` — arquitetura, justiça e próximos passos da IA.
 - `docs/TESTE_v1.0.md` — roteiro de playtest.
+- `docs/VALIDACAO_v1.0.md` — evidências automatizadas da versão.
 
 ## Estado do protótipo
 
