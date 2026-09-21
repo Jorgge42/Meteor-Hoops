@@ -153,6 +153,22 @@ const FOSSIL_CONTAIN_GAP := 0.94
 const FOSSIL_DISRUPTION_MAX := 100.0
 const FOSSIL_MODEL_BROKEN_DURATION := 6.0
 
+# Apex Dominion / coordinated semifinal pressure. Plans change positioning only.
+const APEX_AI_MIN_DELAY := 0.46
+const APEX_AI_MAX_DELAY := 0.82
+const APEX_PRESS_GAP := 0.66
+const APEX_PACK_PAINT_GAP := 1.28
+const APEX_ROAR_MAX := 100.0
+const APEX_ROAR_DURATION := 6.5
+const APEX_SILENCE_DURATION := 6.0
+const APEX_SCREEN_GAIN := 12.0
+const APEX_POST_GAIN := 10.0
+const APEX_OFFENSIVE_REBOUND_GAIN := 20.0
+const APEX_BLOCK_GAIN := 18.0
+const APEX_FORCED_TURNOVER_GAIN := 16.0
+const APEX_PAINT_SCORE_GAIN := 12.0
+const APEX_HOME_SCORE_PENALTY := 18.0
+
 # Difficulty multipliers
 const DIFFICULTY_ADVENTURE_AI := 0.90
 const DIFFICULTY_LEAGUE_AI := 1.00

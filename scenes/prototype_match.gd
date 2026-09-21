@@ -22,6 +22,7 @@ var home_lineup_ids: Array = ["kiro", "luma", "bato"]
 var player_progression: Dictionary = {}
 var adaptive_profile: Dictionary = {}
 var sequence_profile: Dictionary = {}
+var semifinal_profile: Dictionary = {}
 var difficulty_name := "ADVENTURE"
 var shot_feedback_enabled := true
 var reduced_fx := false
@@ -105,6 +106,18 @@ var fossil_announce_cooldown := 0.0
 var fossil_last_announced_prediction := &""
 var home_protection_observed_this_possession := false
 
+# Apex Dominion / coordinated semifinal pressure
+var apex_ai := ApexCoordinationAI.new()
+var composure_tracker := ComposureTracker.new()
+var apex_defensive_plan: int = ApexCoordinationAI.DefensivePlan.BALANCED
+var apex_offensive_plan: int = ApexCoordinationAI.OffensivePlan.SPREAD
+var apex_plan_cooldown := 0.0
+var apex_roar_meter := 0.0
+var apex_roar_left := 0.0
+var apex_silence_left := 0.0
+var apex_plan_announce_cooldown := 0.0
+var apex_last_announced_plan := ""
+
 # Physical basketball / screen state
 var team_fouls := {TEAM_HOME: 0, TEAM_AWAY: 0}
 var screen_ballhandler: DinoPlayer
@@ -144,6 +157,7 @@ var feedback_label: Label
 var tutorial_label: Label
 var nightclaw_label: Label
 var fossil_label: Label
+var apex_label: Label
 var halftime_layer: CanvasLayer
 var halftime_status_label: Label
 var camera: Camera3D
@@ -173,6 +187,12 @@ func _process(delta: float) -> void:
     nightclaw_ai.takeover_active = nightclaw_takeover_left > 0.0
     fossil_model_broken_left = maxf(0.0, fossil_model_broken_left - delta)
     fossil_ai.model_broken = fossil_model_broken_left > 0.0
+    apex_roar_left = maxf(0.0, apex_roar_left - delta)
+    apex_silence_left = maxf(0.0, apex_silence_left - delta)
+    apex_plan_cooldown = maxf(0.0, apex_plan_cooldown - delta)
+    apex_plan_announce_cooldown = maxf(0.0, apex_plan_announce_cooldown - delta)
+    apex_ai.roar_active = apex_roar_left > 0.0
+    apex_ai.silenced_active = apex_silence_left > 0.0
     transition_time_left = maxf(0.0, transition_time_left - delta)
     adaptation_announce_cooldown = maxf(0.0, adaptation_announce_cooldown - delta)
     fossil_announce_cooldown = maxf(0.0, fossil_announce_cooldown - delta)
@@ -363,6 +383,17 @@ func _setup_adaptive_ai() -> void:
     fossil_ai.begin_match(match_seed + 808)
     if not sequence_profile.is_empty():
         sequence_model.from_dictionary(sequence_profile)
+    if difficulty_name == "METEOR":
+        apex_ai.difficulty = ApexCoordinationAI.Difficulty.METEOR
+    elif difficulty_name == "LEAGUE":
+        apex_ai.difficulty = ApexCoordinationAI.Difficulty.LEAGUE
+    else:
+        apex_ai.difficulty = ApexCoordinationAI.Difficulty.ADVENTURE
+    apex_ai.begin_match(match_seed + 909)
+    if match_number == 9:
+        composure_tracker.start_match(semifinal_profile)
+    else:
+        composure_tracker.from_dictionary(semifinal_profile)
     if not match_director.intervention_requested.is_connected(_on_director_intervention):
         match_director.intervention_requested.connect(_on_director_intervention)
 
@@ -394,11 +425,13 @@ func _on_director_intervention(intervention: Dictionary) -> void:
 func _is_player_energy_active(player: DinoPlayer) -> bool:
     if is_instinct_active(player.team_id):
         return true
-    return (
-        match_number == 7
-        and player.team_id == TEAM_AWAY
-        and nightclaw_takeover_left > 0.0
-    )
+    if match_number == 7 and player.team_id == TEAM_AWAY:
+        return nightclaw_takeover_left > 0.0
+    if match_number == 9:
+        if player.team_id == TEAM_AWAY:
+            return apex_roar_left > 0.0
+        return apex_silence_left > 0.0
+    return false
 
 func _dict_to_player_data(entry: Dictionary) -> PlayerData:
     return _make_player_data(
@@ -567,6 +600,15 @@ func _build_hud() -> void:
     fossil_label.visible = match_number == 8
     layer.add_child(fossil_label)
 
+    apex_label = Label.new()
+    apex_label.position = Vector2(855, 205)
+    apex_label.size = Vector2(400, 170)
+    apex_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+    apex_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    apex_label.modulate = Color(1.0, 0.78, 0.24)
+    apex_label.visible = match_number == 9
+    layer.add_child(apex_label)
+
 func request_pass(passer: DinoPlayer, input_dir: Vector2) -> void:
     if passer == null or not passer.has_ball or not is_gameplay_live():
         return
@@ -638,7 +680,7 @@ func request_pass_fake(passer: DinoPlayer, input_dir: Vector2) -> void:
     direction = direction.normalized()
     var fake_target := passer.global_position + direction * 7.0
 
-    if match_number in [7, 8] and passer.team_id == TEAM_HOME:
+    if match_number in [7, 8, 9] and passer.team_id == TEAM_HOME:
         for defender_value in away_players:
             var defender := defender_value as DinoPlayer
             var lane := PassingLaneAnalyzer.distance_to_segment(
@@ -706,6 +748,51 @@ func _observe_home_action(action: StringName, succeeded: bool) -> void:
     elif match_number == 8:
         var result := sequence_model.observe(action)
         _resolve_fossil_prediction(result)
+    elif match_number == 9 and succeeded:
+        _resolve_composure_event(composure_tracker.observe(action))
+
+
+func _resolve_composure_event(result: Dictionary) -> void:
+    if match_number != 9 or not bool(result.get("recorded", false)):
+        return
+    if bool(result.get("activated", false)):
+        apex_silence_left = GameTuning.APEX_SILENCE_DURATION
+        apex_roar_left = 0.0
+        apex_roar_meter = 0.0
+        apex_ai.roar_active = false
+        apex_ai.silenced_active = true
+        apex_plan_cooldown = apex_ai.reaction_time() + 0.85
+        _set_event_feedback(
+            "◇ SILÊNCIO DA VALE ◇ • os planos da Apex demoram mais para mudar",
+            Color(0.42, 1.0, 0.86),
+            2.2
+        )
+
+
+func _gain_apex_roar(amount: float, source: String) -> void:
+    if (
+        match_number != 9
+        or amount <= 0.0
+        or apex_roar_left > 0.0
+        or apex_silence_left > 0.0
+    ):
+        return
+    apex_roar_meter = clampf(
+        apex_roar_meter + amount,
+        0.0,
+        GameTuning.APEX_ROAR_MAX
+    )
+    if apex_roar_meter < GameTuning.APEX_ROAR_MAX:
+        return
+    apex_roar_meter = 0.0
+    apex_roar_left = GameTuning.APEX_ROAR_DURATION
+    apex_ai.roar_active = true
+    apex_plan_cooldown = 0.0
+    _set_event_feedback(
+        "◆ RUGIDO DA DOMINION ◆ • %s • planos acelerados, sem bônus ocultos" % source,
+        Color(1.0, 0.63, 0.12),
+        2.2
+    )
 
 
 func _resolve_fossil_prediction(result: Dictionary) -> void:
@@ -864,6 +951,8 @@ func request_post_move(ballhandler: DinoPlayer) -> void:
     ballhandler.global_position += toward_hoop * step
     defender.global_position += toward_hoop * step * 0.42
     _set_event_feedback("JOGO DE COSTAS • %s GANHA %.1fm" % [ballhandler.data.display_name, step], Color(0.9, 0.72, 0.45), 0.7)
+    if match_number == 9 and ballhandler.team_id == TEAM_AWAY:
+        _gain_apex_roar(GameTuning.APEX_POST_GAIN, "vantagem no poste")
 
 func request_shot(shooter: DinoPlayer, held_seconds: float) -> void:
     if shooter == null or not shooter.has_ball or not is_gameplay_live():
@@ -962,6 +1051,8 @@ func request_block(defender: DinoPlayer) -> void:
         if match_number == 7 and defender.team_id == TEAM_AWAY:
             _gain_nightclaw_takeover(GameTuning.NIGHT_TAKEOVER_BLOCK_GAIN)
         _set_event_feedback("TOCO! • %s" % defender.data.display_name, Color(0.35, 0.9, 1.0), 0.9)
+        if match_number == 9 and defender.team_id == TEAM_AWAY:
+            _gain_apex_roar(GameTuning.APEX_BLOCK_GAIN, "toco da muralha")
         _play_sfx("res://audio/sfx/block.wav")
     else:
         var foul_chance := GameTuning.BLOCK_FOUL_CHANCE + maxf(0.0, 0.7 - defense) * 0.10
@@ -1271,6 +1362,8 @@ func _update_screen_action(delta: float) -> void:
             screen_roll_left = GameTuning.SCREEN_ROLL_SECONDS
             screen_screener.play_action_visual("SCREEN")
             _set_event_feedback("BLOQUEIO PEGOU! • %s ROLA PARA O ARO" % screen_screener.data.display_name, Color(0.95, 0.78, 0.42), 0.8)
+            if match_number == 9 and screen_screener.team_id == TEAM_AWAY:
+                _gain_apex_roar(GameTuning.APEX_SCREEN_GAIN, "bloqueio de potência")
         elif screen_setup_left <= 0.0:
             _clear_screen_state()
         return
@@ -1323,9 +1416,16 @@ func _update_ai(delta: float) -> void:
             var close_to_paint := _flat_distance(rebound_player.global_position, defended_hoop) <= 5.2
             var defensive_rebounder := last_shot_team in [TEAM_HOME, TEAM_AWAY] and rebound_player.team_id != last_shot_team
             var ironhorn_habit := match_number == 6 and rebound_player.team_id == TEAM_AWAY
-            if close_to_paint and defensive_rebounder and (ironhorn_habit or float(rebound_player.data.strength) >= 88.0):
+            var apex_glass_habit := (
+                match_number == 9
+                and rebound_player.team_id == TEAM_AWAY
+                and apex_defensive_plan == ApexCoordinationAI.DefensivePlan.CONTROL_GLASS
+            )
+            if close_to_paint and defensive_rebounder and (ironhorn_habit or apex_glass_habit or float(rebound_player.data.strength) >= 88.0):
                 rebound_player.set_ai_box_out(true)
 
+    if match_number == 9 and ball.state == MeteorBall.BallState.LOOSE:
+        _update_apex_plan(null, rebound_window)
     if ball.state == MeteorBall.BallState.LOOSE:
         for player in all_players:
             if player == controlled_player:
@@ -1351,6 +1451,8 @@ func _update_ai(delta: float) -> void:
     var holder: DinoPlayer = null
     if ball.state == MeteorBall.BallState.HELD and ball.holder is DinoPlayer:
         holder = ball.holder as DinoPlayer
+    if match_number == 9:
+        _update_apex_plan(holder, rebound_window)
 
     for player in offense:
         if player == controlled_player:
@@ -1362,6 +1464,11 @@ func _update_ai(delta: float) -> void:
         elif player.team_id == TEAM_HOME and player == home_cut_player and home_cut_time_left > 0.0:
             var cut_target := _attack_hoop(TEAM_HOME) + Vector3(0.0, -GameTuning.HOOP_HEIGHT, 1.8)
             player.set_ai_target(cut_target, true)
+        elif match_number == 9 and player.team_id == TEAM_AWAY:
+            player.set_ai_target(
+                _apex_offball_anchor(player),
+                apex_offensive_plan == ApexCoordinationAI.OffensivePlan.CRASH_GLASS
+            )
         else:
             player.set_ai_target(_spacing_anchor(player.team_id, player.roster_index), false)
 
@@ -1371,6 +1478,7 @@ func _update_ai(delta: float) -> void:
         var assignment := offense[defender.roster_index % offense.size()] as DinoPlayer
         var night_defense := match_number == 7 and defender.team_id == TEAM_AWAY
         var fossil_defense := match_number == 8 and defender.team_id == TEAM_AWAY
+        var apex_defense := match_number == 9 and defender.team_id == TEAM_AWAY
         var defender_id := defender.get_instance_id()
         if (night_defense or fossil_defense) and fake_defender_targets.has(defender_id):
             var fake_target: Vector3 = fake_defender_targets[defender_id]
@@ -1445,9 +1553,205 @@ func _update_ai(delta: float) -> void:
             ]
             defender.set_ai_target(fossil_target, fossil_sprint)
             continue
+        if apex_defense:
+            var apex_target := _apex_defensive_target(
+                defender,
+                assignment,
+                holder,
+                contain,
+                toward_hoop
+            )
+            var apex_sprint := apex_defensive_plan in [
+                ApexCoordinationAI.DefensivePlan.PRESS_BALL,
+                ApexCoordinationAI.DefensivePlan.SWITCH_ALL,
+            ]
+            defender.set_ai_target(apex_target, apex_sprint)
+            continue
         if toward_hoop.length() > 0.01:
             contain += toward_hoop.normalized() * contain_gap
         defender.set_ai_target(contain, assignment == holder or ember_press)
+
+
+func _update_apex_plan(holder: DinoPlayer, rebound_window: bool) -> void:
+    if match_number != 9 or apex_plan_cooldown > 0.0:
+        return
+
+    var decision: Dictionary
+    var plan_changed := false
+    var plan_name := ""
+    if possession_team == TEAM_HOME:
+        var hoop := _attack_hoop(TEAM_HOME)
+        var holder_distance := 9.0
+        var holder_strength := 50.0
+        if holder != null:
+            holder_distance = _flat_distance(holder.global_position, hoop)
+            holder_strength = float(holder.data.strength)
+        var drive_threat := clampf(1.0 - holder_distance / 8.5, 0.0, 1.0)
+        var post_threat := 0.0
+        if holder_distance <= GameTuning.POST_MAX_DISTANCE + 1.0:
+            post_threat = clampf((holder_strength - 45.0) / 55.0, 0.0, 1.0)
+        var clock_pressure := clampf(
+            1.0 - shot_clock_left / GameTuning.SHOT_CLOCK,
+            0.0,
+            1.0
+        )
+        decision = apex_ai.choose_defensive_plan({
+            "screen_active": is_instance_valid(screen_screener),
+            "drive_threat": drive_threat,
+            "post_threat": post_threat,
+            "ball_pressure": clock_pressure,
+            "clock_pressure": clock_pressure,
+            "rebound_priority": 1.0 if rebound_window else 0.12,
+            "foul_risk": clampf(float(team_fouls[TEAM_AWAY]) / 6.0, 0.0, 1.0),
+        })
+        var next_defensive_plan := int(decision.get(
+            "plan",
+            ApexCoordinationAI.DefensivePlan.BALANCED
+        ))
+        plan_changed = next_defensive_plan != apex_defensive_plan
+        apex_defensive_plan = next_defensive_plan
+        plan_name = apex_ai.defensive_plan_name(apex_defensive_plan)
+    else:
+        var strength_edge := 0.5
+        if holder != null:
+            var marker := _closest_defender_to_player(holder)
+            if marker != null:
+                strength_edge = clampf(
+                    0.5 + float(holder.data.strength - marker.data.strength) / 80.0,
+                    0.0,
+                    1.0
+                )
+        var apex_strength := 0.0
+        var home_strength := 0.0
+        for value in away_players:
+            apex_strength += float((value as DinoPlayer).data.strength)
+        for value in home_players:
+            home_strength += float((value as DinoPlayer).data.strength)
+        apex_strength /= maxf(1.0, float(away_players.size()))
+        home_strength /= maxf(1.0, float(home_players.size()))
+        var rebound_edge := clampf(
+            0.5 + (apex_strength - home_strength) / 90.0,
+            0.0,
+            1.0
+        )
+        var paint_crowding := 0.0
+        var attack_hoop := _attack_hoop(TEAM_AWAY)
+        for value in home_players:
+            var home_player := value as DinoPlayer
+            if _flat_distance(home_player.global_position, attack_hoop) <= 4.8:
+                paint_crowding += 1.0 / maxf(1.0, float(home_players.size()))
+        decision = apex_ai.choose_offensive_plan({
+            "screen_ready": screen_call_cooldown <= 0.0 and holder != null,
+            "strength_edge": strength_edge,
+            "rebound_edge": rebound_edge + (0.20 if rebound_window else 0.0),
+            "paint_crowding": paint_crowding,
+        })
+        var next_offensive_plan := int(decision.get(
+            "plan",
+            ApexCoordinationAI.OffensivePlan.SPREAD
+        ))
+        plan_changed = next_offensive_plan != apex_offensive_plan
+        apex_offensive_plan = next_offensive_plan
+        plan_name = apex_ai.offensive_plan_name(apex_offensive_plan)
+
+    var plan_pause := 0.45 if apex_roar_left > 0.0 else 0.85
+    apex_plan_cooldown = float(
+        decision.get("reaction_delay", apex_ai.reaction_time())
+    ) + plan_pause
+    _announce_apex_plan(plan_name, decision, plan_changed)
+
+
+func _announce_apex_plan(
+    plan_name: String,
+    decision: Dictionary,
+    plan_changed: bool
+) -> void:
+    if (
+        not plan_changed
+        or apex_plan_announce_cooldown > 0.0
+        or plan_name == apex_last_announced_plan
+    ):
+        return
+    apex_last_announced_plan = plan_name
+    apex_plan_announce_cooldown = 2.8
+    _set_event_feedback(
+        "APEX: %s • %s" % [
+            plan_name,
+            String(decision.get("counterplay", "mantenha a compostura")),
+        ],
+        Color(1.0, 0.76, 0.22),
+        1.9
+    )
+
+
+func _apex_defensive_target(
+    defender: DinoPlayer,
+    assignment: DinoPlayer,
+    holder: DinoPlayer,
+    contain: Vector3,
+    toward_hoop: Vector3
+) -> Vector3:
+    var target := contain
+    var protected_hoop := _defended_hoop(defender.team_id)
+    match apex_defensive_plan:
+        ApexCoordinationAI.DefensivePlan.PRESS_BALL:
+            if holder != null and assignment == holder:
+                target = holder.global_position
+                var pressure_lane := _attack_hoop(holder.team_id) - target
+                pressure_lane.y = 0.0
+                if pressure_lane.length() > 0.05:
+                    target += pressure_lane.normalized() * GameTuning.APEX_PRESS_GAP
+            elif holder != null:
+                target = assignment.global_position.lerp(holder.global_position, 0.18)
+        ApexCoordinationAI.DefensivePlan.SWITCH_ALL:
+            if is_instance_valid(screen_ballhandler) and is_instance_valid(screen_screener):
+                if assignment == screen_ballhandler:
+                    target = screen_screener.global_position
+                elif assignment == screen_screener:
+                    target = screen_ballhandler.global_position
+                elif toward_hoop.length() > 0.05:
+                    target += toward_hoop.normalized() * GameTuning.AI_CONTAIN_GAP
+            elif toward_hoop.length() > 0.05:
+                target += toward_hoop.normalized() * GameTuning.AI_CONTAIN_GAP
+        ApexCoordinationAI.DefensivePlan.PACK_PAINT:
+            var paint_threat := holder if holder != null and assignment == holder else assignment
+            target = paint_threat.global_position
+            var paint_direction := protected_hoop - target
+            paint_direction.y = 0.0
+            if paint_direction.length() > 0.05:
+                target += paint_direction.normalized() * GameTuning.APEX_PACK_PAINT_GAP
+        ApexCoordinationAI.DefensivePlan.CONTROL_GLASS:
+            target = assignment.global_position.lerp(protected_hoop, 0.44)
+            target.y = 0.0
+        _:
+            if toward_hoop.length() > 0.05:
+                target += toward_hoop.normalized() * GameTuning.AI_CONTAIN_GAP
+    target.x = clampf(target.x, -6.2, 6.2)
+    target.z = clampf(target.z, -11.4, 11.4)
+    return target
+
+
+func _apex_offball_anchor(player: DinoPlayer) -> Vector3:
+    var index := player.roster_index
+    match apex_offensive_plan:
+        ApexCoordinationAI.OffensivePlan.POWER_SCREEN:
+            if index == 1:
+                return Vector3(4.8, 0.0, 6.2)
+            return Vector3(-2.4, 0.0, 8.4)
+        ApexCoordinationAI.OffensivePlan.POST_HUB:
+            if index == 2:
+                return Vector3(-1.25, 0.0, 9.4)
+            return Vector3(5.0 if index == 1 else -5.0, 0.0, 6.0)
+        ApexCoordinationAI.OffensivePlan.CRASH_GLASS:
+            if index == 1:
+                return Vector3(2.6, 0.0, 8.7)
+            return Vector3(-1.8, 0.0, 9.6)
+        _:
+            if index == 1:
+                return Vector3(5.4, 0.0, 5.8)
+            if index == 2:
+                return Vector3(-5.2, 0.0, 6.8)
+            return Vector3(0.0, 0.0, 4.4)
 
 
 func _nightclaw_decision_for(
@@ -1703,6 +2007,7 @@ func _update_ai_ballhandler(player: DinoPlayer) -> void:
     var iron_attack := match_number == 6 and player.team_id == TEAM_AWAY
     var night_attack := match_number == 7 and player.team_id == TEAM_AWAY
     var fossil_attack := match_number == 8 and player.team_id == TEAM_AWAY
+    var apex_attack := match_number == 9 and player.team_id == TEAM_AWAY
     var night_transition := (
         night_attack
         and transition_team == TEAM_AWAY
@@ -1743,6 +2048,9 @@ func _update_ai_ballhandler(player: DinoPlayer) -> void:
     elif fossil_attack:
         delay_min = GameTuning.FOSSIL_AI_MIN_DELAY
         delay_max = GameTuning.FOSSIL_AI_MAX_DELAY
+    elif apex_attack:
+        delay_min = GameTuning.APEX_AI_MIN_DELAY
+        delay_max = GameTuning.APEX_AI_MAX_DELAY
     var ai_factor := _difficulty_ai_multiplier() if player.team_id == TEAM_AWAY else 1.0
     delay_min /= ai_factor
     delay_max /= ai_factor
@@ -1758,6 +2066,9 @@ func _update_ai_ballhandler(player: DinoPlayer) -> void:
     var shot_contest_limit := 0.72 if ember_attack else 0.62
     var sky_target := _best_lob_target(player) if sky_attack else null
     var sky_lob_ready := sky_attack and sky_target != null and _flat_distance(sky_target.global_position, hoop) <= GameTuning.ALLEY_TARGET_MAX_DISTANCE
+    if apex_attack and _execute_apex_offense(player, to_hoop, contest):
+        ai_action_cooldowns[id] = rng.randf_range(delay_min, delay_max)
+        return
     if fossil_attack:
         var fossil_receiver := _best_ai_pass_target(player)
         var finish_ev := -1.0
@@ -1883,6 +2194,90 @@ func _update_ai_ballhandler(player: DinoPlayer) -> void:
             feedback_label.text = "%s movimenta a bola" % _team_name(player.team_id)
 
     ai_action_cooldowns[id] = rng.randf_range(delay_min, delay_max)
+
+
+func _execute_apex_offense(
+    player: DinoPlayer,
+    to_hoop: Vector3,
+    contest: float
+) -> bool:
+    if (
+        apex_offensive_plan == ApexCoordinationAI.OffensivePlan.POWER_SCREEN
+        and screen_call_cooldown <= 0.0
+        and not is_instance_valid(screen_screener)
+        and to_hoop.length() > 4.2
+    ):
+        request_screen(player)
+        return true
+
+    if (
+        apex_offensive_plan == ApexCoordinationAI.OffensivePlan.POST_HUB
+        and to_hoop.length() <= GameTuning.POST_MAX_DISTANCE
+        and contest >= 0.12
+    ):
+        request_post_move(player)
+        return true
+
+    if (
+        apex_offensive_plan == ApexCoordinationAI.OffensivePlan.CRASH_GLASS
+        and to_hoop.length() <= GameTuning.FINISH_MAX_DISTANCE
+        and contest < 0.76
+    ):
+        request_finish(player)
+        return true
+
+    var receiver := _best_ai_pass_target(player)
+    if (
+        apex_offensive_plan == ApexCoordinationAI.OffensivePlan.SPREAD
+        and to_hoop.length() <= 7.8
+        and contest < 0.42
+    ):
+        var spread_timing := clampf(
+            0.62 + float(player.data.shooting) / 260.0 + rng.randf_range(-0.08, 0.08),
+            0.48,
+            0.96
+        )
+        _release_shot(player, spread_timing)
+        return true
+
+    if to_hoop.length() <= GameTuning.FINISH_MAX_DISTANCE and contest < 0.68:
+        request_finish(player)
+        return true
+    if receiver != null and contest >= 0.34:
+        _apex_pass_to(player, receiver)
+        return true
+    if to_hoop.length() <= 7.8 and contest < 0.62:
+        var timing := clampf(
+            0.62 + float(player.data.shooting) / 260.0 + rng.randf_range(-0.08, 0.08),
+            0.48,
+            0.96
+        )
+        _release_shot(player, timing)
+        return true
+    if receiver != null:
+        _apex_pass_to(player, receiver)
+        return true
+    return false
+
+
+func _apex_pass_to(passer: DinoPlayer, receiver: DinoPlayer) -> void:
+    _prepare_pass_context(passer, receiver, false)
+    last_passer_by_team[passer.team_id] = passer
+    passer.release_ball()
+    var pass_speed := lerpf(
+        GameTuning.PASS_SPEED,
+        GameTuning.STRONG_PASS_SPEED,
+        float(passer.data.passing) / 100.0
+    )
+    ball.launch_pass(
+        receiver.global_position + Vector3.UP * 1.02,
+        receiver,
+        pass_speed,
+        passer.team_id
+    )
+    feedback_label.text = "APEX EXECUTA %s" % apex_ai.offensive_plan_name(
+        apex_offensive_plan
+    )
 
 
 func _best_transition_target(passer: DinoPlayer) -> DinoPlayer:
@@ -2065,6 +2460,15 @@ func _register_turnover(
         Color(0.72, 0.58, 1.0),
         1.0
     )
+    if match_number == 9:
+        if turnover_team == TEAM_HOME:
+            _resolve_composure_event(composure_tracker.punish_turnover())
+            _gain_apex_roar(
+                GameTuning.APEX_FORCED_TURNOVER_GAIN,
+                "erro forçado da Vale"
+            )
+        elif recovery_team == TEAM_HOME:
+            _resolve_composure_event(composure_tracker.reward_defensive_stop())
 
 
 func _gain_nightclaw_takeover(amount: float) -> void:
@@ -2089,12 +2493,15 @@ func _give_ball_to(player: DinoPlayer, reason: String) -> void:
     if player == null:
         return
     var previous_possession := possession_team
+    var shot_team_before := last_shot_team
     if is_instance_valid(ball.holder) and ball.holder is DinoPlayer:
         (ball.holder as DinoPlayer).release_ball()
     player.take_ball()
     possession_team = player.team_id
     if player.team_id != previous_possession:
         last_passer_by_team[player.team_id] = null
+        if match_number == 9:
+            composure_tracker.begin_possession()
 
     if not training_mode:
         if reason.begins_with("REBOTE") and player.team_id == last_shot_team:
@@ -2111,6 +2518,14 @@ func _give_ball_to(player: DinoPlayer, reason: String) -> void:
         _gain_instinct(player.team_id, rebound_gain)
 
     feedback_label.text = "%s • %s" % [reason, player.data.display_name]
+    if match_number == 9 and reason.begins_with("REBOTE"):
+        if player.team_id == TEAM_AWAY and shot_team_before == TEAM_AWAY:
+            _gain_apex_roar(
+                GameTuning.APEX_OFFENSIVE_REBOUND_GAIN,
+                "segunda chance conquistada"
+            )
+        elif player.team_id == TEAM_HOME and shot_team_before == TEAM_AWAY:
+            _resolve_composure_event(composure_tracker.reward_defensive_stop())
     if player.team_id == TEAM_HOME:
         _select_controlled(player)
     var id := player.get_instance_id()
@@ -2178,6 +2593,11 @@ func _start_possession(team: int, new_clock: float = GameTuning.SHOT_CLOCK) -> v
         sequence_model.finish_possession()
     elif possession_count == 0 and match_number == 8:
         sequence_model.begin_possession()
+    if match_number == 9:
+        composure_tracker.begin_possession()
+        apex_defensive_plan = ApexCoordinationAI.DefensivePlan.BALANCED
+        apex_offensive_plan = ApexCoordinationAI.OffensivePlan.SPREAD
+        apex_plan_cooldown = apex_ai.reaction_time()
     possession_count += 1
     turnover_happened_this_possession = false
     home_protection_observed_this_possession = false
@@ -2505,6 +2925,15 @@ func _on_basket_scored(_detector_points: int, basket_id: StringName) -> void:
 
     _refresh_score()
     _set_event_feedback("+%d  METEOR!  %s • %s" % [points, _team_name(scoring_team), ball.shot_type], Color(1.0, 0.78, 0.24), 0.8)
+    if match_number == 9:
+        if scoring_team == TEAM_HOME:
+            apex_roar_meter = maxf(
+                0.0,
+                apex_roar_meter - GameTuning.APEX_HOME_SCORE_PENALTY
+            )
+            _resolve_composure_event(composure_tracker.reward_safe_possession())
+        elif last_shot_type in ["DUNK", "LAYUP"]:
+            _gain_apex_roar(GameTuning.APEX_PAINT_SCORE_GAIN, "cesta no garrafão")
     _play_sfx("res://audio/sfx/basket.wav")
 
     await get_tree().create_timer(GameTuning.DEAD_BALL_DELAY).timeout
@@ -2630,6 +3059,30 @@ func _refresh_match_hud() -> void:
                 SequencePredictionModel.MIN_CONTEXT_EVIDENCE,
                 roundi(fossil_disruption_meter),
             ]
+    if is_instance_valid(apex_label) and match_number == 9:
+        var apex_plan_name := apex_ai.defensive_plan_name(apex_defensive_plan)
+        if possession_team == TEAM_AWAY:
+            apex_plan_name = apex_ai.offensive_plan_name(apex_offensive_plan)
+        if apex_roar_left > 0.0:
+            apex_label.text = "◆ RUGIDO DA DOMINION ◆\n%.1fs • PLANO: %s\nReação coletiva rápida • sem bônus ocultos" % [
+                apex_roar_left,
+                apex_plan_name,
+            ]
+            apex_label.modulate = Color(1.0, 0.58, 0.10)
+        elif apex_silence_left > 0.0:
+            apex_label.text = "◇ SILÊNCIO DA VALE ◇\n%.1fs • PLANO: %s\nA Apex demora mais para reorganizar" % [
+                apex_silence_left,
+                apex_plan_name,
+            ]
+            apex_label.modulate = Color(0.38, 1.0, 0.82)
+        else:
+            apex_label.text = "PLANO APEX: %s\nRUGIDO: %d%% • COMPOSTURA: %d%%\nSEQUÊNCIA: x%d • varie ações" % [
+                apex_plan_name,
+                roundi(apex_roar_meter),
+                roundi(composure_tracker.meter),
+                composure_tracker.current_chain,
+            ]
+            apex_label.modulate = Color(1.0, 0.78, 0.24)
     if match_state == MatchState.FREE_THROW:
         period_label.text = "LANCE LIVRE"
         timer_label.text = _format_time(period_time_left)
@@ -2748,6 +3201,16 @@ func _show_halftime() -> void:
         sequence_model.reset_short_term_memory()
         fossil_actions.clear()
         fossil_decision_cooldowns.clear()
+    elif match_number == 9:
+        composure_tracker.reset_short_term_memory()
+        apex_roar_meter *= 0.50
+        apex_roar_left = 0.0
+        apex_silence_left = 0.0
+        apex_ai.roar_active = false
+        apex_ai.silenced_active = false
+        apex_defensive_plan = ApexCoordinationAI.DefensivePlan.BALANCED
+        apex_offensive_plan = ApexCoordinationAI.OffensivePlan.SPREAD
+        apex_plan_cooldown = 0.0
     if is_instance_valid(halftime_layer):
         halftime_layer.queue_free()
     halftime_layer = CanvasLayer.new()
@@ -2927,10 +3390,18 @@ func get_home_stats_summary() -> Dictionary:
         "points_off_turnovers": points_off_turnovers.duplicate(true),
         "adaptive_profile": tendency_model.to_dictionary(),
         "sequence_profile": sequence_model.to_dictionary(),
+        "semifinal_profile": composure_tracker.to_dictionary(),
         "prediction_summary": {
             "seen": fossil_predictions_seen,
             "correct": fossil_predictions_correct,
             "evaded": fossil_predictions_evaded,
+        },
+        "apex_summary": {
+            "roar_meter": snappedf(apex_roar_meter, 0.1),
+            "best_composure_chain": composure_tracker.best_chain,
+            "roars_silenced": composure_tracker.roars_silenced,
+            "defensive_plan": apex_ai.defensive_plan_name(apex_defensive_plan),
+            "offensive_plan": apex_ai.offensive_plan_name(apex_offensive_plan),
         },
     }
 

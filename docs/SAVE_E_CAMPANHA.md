@@ -1,10 +1,10 @@
-# Save e campanha — v1.0
+# Save e campanha — v1.1
 
 ## Arquivo
 `user://meteor_hoops_save.json`
 
 ## Schema atual
-Versão **7**.
+Versão **8**.
 
 ## Estado persistente
 - introdução e capítulos vistos;
@@ -20,12 +20,13 @@ Versão **7**.
 - temporada com PTS/AST/REB/STL/BLK, FG, 3PT, FT, faltas e turnovers;
 - perfil adaptativo local com contagens agregadas de ações de gameplay.
 - perfil de sequências com transições agregadas, sem trajetória, texto livre ou dado pessoal.
+- perfil da semifinal com partidas disputadas, melhor sequência de Compostura e Rugidos silenciados.
 
 ## Migração
-O carregamento completa campos ausentes em saves antigos. A migração v7 preserva todas as garantias da v6 e cria `sequence_profile` quando necessário. Estruturas malformadas de frequência ou sequência são substituídas por dicionários vazios, e pesos são limitados novamente ao entrar no modelo.
+O carregamento completa campos ausentes em saves antigos. A migração v8 preserva todas as garantias da v7 e cria `semifinal_profile` quando necessário. Estruturas malformadas de frequência ou sequência são substituídas por dicionários vazios; contadores da semifinal e pesos dos modelos são limitados antes do uso.
 
 ## Rota implementada
-- Jogos 1–8 jogáveis.
-- Jogos 9–10 visíveis no mapa e ainda não jogáveis.
+- Jogos 1–9 jogáveis.
+- Jogo 10 visível no mapa e ainda não jogável.
 
-Ao vencer o Jogo 8, a semifinal contra a Apex Dominion é desbloqueada como o próximo nó narrativo.
+Ao vencer o Jogo 9, a final contra a Tyrant Crown Academy é desbloqueada como o próximo nó narrativo.

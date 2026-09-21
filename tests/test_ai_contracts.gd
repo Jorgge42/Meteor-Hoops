@@ -6,6 +6,8 @@ const NightclawAI = preload("res://systems/ai/nightclaw_utility_ai.gd")
 const FairDirector = preload("res://systems/ai/fair_match_director.gd")
 const SequenceModel = preload("res://systems/ai/sequence_prediction_model.gd")
 const FossilAI = preload("res://systems/ai/fossil_tech_predictive_ai.gd")
+const ApexAI = preload("res://systems/ai/apex_coordination_ai.gd")
+const Composure = preload("res://systems/ai/composure_tracker.gd")
 const Catalog = preload("res://data/match_catalog.gd")
 const Saves = preload("res://systems/save_manager.gd")
 
@@ -27,6 +29,10 @@ func _init() -> void:
     _test_fossil_reaction_and_counterplay_contract()
     _test_fossil_expected_value_choice()
     _test_game_eight_and_save_contract()
+    _test_composure_rewards_variety_not_repetition()
+    _test_composure_profile_round_trip_is_bounded()
+    _test_apex_plan_and_fairness_contract()
+    _test_game_nine_and_save_contract()
 
     if failures.is_empty():
         print("AI CONTRACTS: %d checks passed" % checks)
@@ -152,7 +158,7 @@ func _test_game_seven_and_save_contract() -> void:
         "A HQ pós-jogo do capítulo 7 deve existir."
     )
     var profile: Dictionary = Saves.default_profile()
-    _expect(int(profile.get("version", 0)) == 7, "O save padrão deve usar a versão 7.")
+    _expect(int(profile.get("version", 0)) == 8, "O save padrão deve usar a versão 8.")
     _expect(
         typeof(profile.get("adaptive_profile")) == TYPE_DICTIONARY,
         "O save deve conter um perfil adaptativo local."
@@ -293,10 +299,131 @@ func _test_game_eight_and_save_contract() -> void:
         "A HQ pós-jogo do capítulo 8 deve existir."
     )
     var profile: Dictionary = Saves.default_profile()
-    _expect(int(profile.get("version", 0)) == 7, "O save padrão deve usar a versão 7.")
+    _expect(int(profile.get("version", 0)) == 8, "O save padrão deve usar a versão 8.")
     _expect(
         typeof(profile.get("sequence_profile")) == TYPE_DICTIONARY,
         "O save deve conter o perfil agregado de sequências."
+    )
+
+
+func _test_composure_rewards_variety_not_repetition() -> void:
+    var tracker = Composure.new()
+    tracker.start_match()
+    var first: Dictionary = tracker.observe(&"drive")
+    var repeated: Dictionary = tracker.observe(&"drive")
+    _expect(
+        bool(repeated.get("repeated", false)),
+        "Repetir uma ação recente deve ser identificado pela Compostura."
+    )
+    _expect(
+        float(repeated.get("meter", 0.0)) < float(first.get("meter", 0.0)),
+        "Repetição não pode carregar Compostura."
+    )
+    tracker.begin_possession()
+    tracker.observe(&"screen")
+    tracker.observe(&"normal_pass")
+    var varied: Dictionary = tracker.observe(&"jump_shot")
+    _expect(
+        int(varied.get("chain", 0)) == 3,
+        "Três decisões distintas devem formar uma sequência de Compostura."
+    )
+    var activation: Dictionary = {}
+    for _i in range(7):
+        activation = tracker.reward_safe_possession()
+    _expect(
+        tracker.roars_silenced >= 1 or bool(activation.get("activated", false)),
+        "Compostura cheia deve ativar o Silêncio da Vale."
+    )
+
+
+func _test_composure_profile_round_trip_is_bounded() -> void:
+    var tracker = Composure.new()
+    tracker.from_dictionary({
+        "games": 999999,
+        "best_composure_chain": 999999,
+        "roars_silenced": 999999,
+    })
+    var saved: Dictionary = tracker.to_dictionary()
+    _expect(int(saved.get("games", 0)) == 9999, "Partidas da semifinal devem ser limitadas no save.")
+    _expect(
+        int(saved.get("best_composure_chain", 0)) == 999,
+        "A melhor sequência deve ser limitada no save."
+    )
+    var restored = Composure.new()
+    restored.from_dictionary(saved)
+    _expect(
+        int(restored.to_dictionary().get("roars_silenced", 0)) == 9999,
+        "O perfil da semifinal deve sobreviver ao round-trip."
+    )
+
+
+func _test_apex_plan_and_fairness_contract() -> void:
+    var ai = ApexAI.new()
+    ai.begin_match(909)
+    ai.roar_active = true
+    for difficulty in [
+        ApexAI.Difficulty.ADVENTURE,
+        ApexAI.Difficulty.LEAGUE,
+        ApexAI.Difficulty.METEOR,
+    ]:
+        ai.difficulty = difficulty
+        _expect(
+            ai.reaction_time() >= ApexAI.REACTION_FLOOR,
+            "O Rugido nunca pode quebrar o piso legível de reação."
+        )
+    ai.roar_active = false
+    var switch_plan: Dictionary = ai.choose_defensive_plan({
+        "screen_active": true,
+        "drive_threat": 0.0,
+        "post_threat": 0.0,
+        "ball_pressure": 0.0,
+        "clock_pressure": 0.0,
+        "rebound_priority": 0.0,
+        "foul_risk": 0.0,
+    })
+    _expect(
+        int(switch_plan.get("plan", -1)) == ApexAI.DefensivePlan.SWITCH_ALL,
+        "Um bloqueio ativo deve chamar a Troca Total."
+    )
+    var paint_plan: Dictionary = ai.choose_defensive_plan({
+        "screen_active": false,
+        "drive_threat": 1.0,
+        "post_threat": 0.7,
+        "ball_pressure": 0.0,
+        "clock_pressure": 0.0,
+        "rebound_priority": 0.0,
+        "foul_risk": 0.0,
+    })
+    _expect(
+        int(paint_plan.get("plan", -1)) == ApexAI.DefensivePlan.PACK_PAINT,
+        "Uma ameaça clara ao aro deve chamar a Parede no Garrafão."
+    )
+    var contract: Dictionary = ai.fairness_contract()
+    _expect(bool(contract.get("visible_plan", false)), "Todo plano Apex deve ser visível.")
+    for forbidden in ["shot_probability", "ball_physics", "hidden_attribute_boost"]:
+        _expect(
+            not bool(contract.get(forbidden, true)),
+            "A Apex não pode habilitar %s." % forbidden
+        )
+
+
+func _test_game_nine_and_save_contract() -> void:
+    var match_nine: Dictionary = Catalog.get_match(9)
+    _expect(bool(match_nine.get("playable", false)), "O Jogo 9 deve estar jogável.")
+    _expect(
+        ResourceLoader.exists(String(match_nine.get("pre_chapter", ""))),
+        "A HQ pré-jogo do capítulo 9 deve existir."
+    )
+    _expect(
+        ResourceLoader.exists(String(match_nine.get("post_chapter", ""))),
+        "A HQ pós-jogo do capítulo 9 deve existir."
+    )
+    _expect(Catalog.away_roster(9).size() == 5, "A Apex Dominion deve ter cinco atletas.")
+    var profile: Dictionary = Saves.default_profile()
+    _expect(int(profile.get("version", 0)) == 8, "A semifinal deve usar o save v8.")
+    _expect(
+        typeof(profile.get("semifinal_profile")) == TYPE_DICTIONARY,
+        "O save deve conter o perfil agregado da semifinal."
     )
 
 

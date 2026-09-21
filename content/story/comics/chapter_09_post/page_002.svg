@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+<rect width="1280" height="720" fill="#120e04"/>
+<path d="M850 500 L960 250 L1070 500 Z" fill="#3d2f06" stroke="#fde047" stroke-width="9"/>
+<circle cx="960" cy="220" r="42" fill="#eab308"/>
+<path d="M810 565 H1110" stroke="#facc15" stroke-width="14"/>
+<text x="80" y="100" font-family="sans-serif" font-size="28" fill="#fde047">CAPÍTULO 09 • DEPOIS DO RUGIDO</text>
+<text x="80" y="155" font-family="sans-serif" font-size="19" fill="#8b93a7">PÁGINA 2</text>
+<text x="80" y="245" font-family="sans-serif" font-size="40" font-weight="700" fill="#f8fafc">REXON ABAIXA A GARRA.</text>
+<text x="80" y="338" font-family="sans-serif" font-size="26" fill="#dce4ee">“Força sem leitura é só peso”, admite o capitão da Dominion.</text>
+<text x="80" y="380" font-family="sans-serif" font-size="26" fill="#dce4ee">“Vocês não venceram três duelos. Venceram o nosso plano.”</text>
+<text x="80" y="422" font-family="sans-serif" font-size="26" fill="#dce4ee">No mapa, a última rota se acende em vermelho.</text>
+<text x="1120" y="660" font-family="sans-serif" font-size="24" fill="#fde047">☄ 10</text>
+</svg>

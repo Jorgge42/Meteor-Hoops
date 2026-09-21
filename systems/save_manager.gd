@@ -9,7 +9,7 @@ const PLAYER_NAMES := {
 
 static func default_profile() -> Dictionary:
     return {
-        "version": 7,
+        "version": 8,
         "intro_seen": false,
         "seen_story_chapters": [],
         "tutorial_completed": false,
@@ -34,6 +34,12 @@ static func default_profile() -> Dictionary:
         "sequence_profile": {
             "version": 1,
             "transitions": {}
+        },
+        "semifinal_profile": {
+            "version": 1,
+            "games": 0,
+            "best_composure_chain": 0,
+            "roars_silenced": 0
         },
         "last_progression": []
     }
@@ -74,11 +80,11 @@ static func load_profile() -> Dictionary:
         if not seen.has("chapter_01_pre"):
             seen.append("chapter_01_pre")
         profile["seen_story_chapters"] = seen
-    _ensure_v7(profile)
-    profile["version"] = 7
+    _ensure_v8(profile)
+    profile["version"] = 8
     return profile
 
-static func _ensure_v7(profile: Dictionary) -> void:
+static func _ensure_v8(profile: Dictionary) -> void:
     var progress: Dictionary = profile.get("player_progress", {})
     var defaults := _default_player_progress()
     for id in PLAYER_IDS:
@@ -137,6 +143,28 @@ static func _ensure_v7(profile: Dictionary) -> void:
             sequence["transitions"] = {}
         sequence["version"] = 1
         profile["sequence_profile"] = sequence
+    var semifinal = profile.get("semifinal_profile", {})
+    if typeof(semifinal) != TYPE_DICTIONARY:
+        profile["semifinal_profile"] = {
+            "version": 1,
+            "games": 0,
+            "best_composure_chain": 0,
+            "roars_silenced": 0
+        }
+    else:
+        semifinal["version"] = 1
+        semifinal["games"] = clampi(int(semifinal.get("games", 0)), 0, 9999)
+        semifinal["best_composure_chain"] = clampi(
+            int(semifinal.get("best_composure_chain", 0)),
+            0,
+            999
+        )
+        semifinal["roars_silenced"] = clampi(
+            int(semifinal.get("roars_silenced", 0)),
+            0,
+            9999
+        )
+        profile["semifinal_profile"] = semifinal
 
 static func save_profile(profile: Dictionary) -> bool:
     var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
@@ -226,7 +254,7 @@ static func xp_to_next_level(xp: int) -> int:
     return maxi(0, xp_threshold_for_level(level + 1) - xp)
 
 static func _apply_progression(profile: Dictionary, stats: Dictionary, won: bool) -> void:
-    _ensure_v7(profile)
+    _ensure_v8(profile)
     var progress: Dictionary = profile.get("player_progress", {})
     var totals: Dictionary = profile.get("season_totals", {})
     var summary: Array = []
@@ -291,9 +319,14 @@ static func _apply_progression(profile: Dictionary, stats: Dictionary, won: bool
     var sequence = stats.get("sequence_profile", {})
     if typeof(sequence) == TYPE_DICTIONARY and not sequence.is_empty():
         profile["sequence_profile"] = sequence.duplicate(true)
+    var semifinal = stats.get("semifinal_profile", {})
+    if typeof(semifinal) == TYPE_DICTIONARY and not semifinal.is_empty():
+        profile["semifinal_profile"] = semifinal.duplicate(true)
+    _ensure_v8(profile)
+    profile["version"] = 8
 
 static func spend_upgrade_point(profile: Dictionary, player_id: String, stat: String) -> Dictionary:
-    _ensure_v7(profile)
+    _ensure_v8(profile)
     if not PLAYER_IDS.has(player_id):
         return profile
     if not ["speed", "shooting", "passing", "defense", "strength"].has(stat):
