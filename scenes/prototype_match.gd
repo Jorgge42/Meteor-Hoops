@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 32161)
-Total output lines: 3024
-
 class_name PrototypeMatch
 extends Node3D
 
@@ -967,7 +964,1088 @@ func request_block(defender: DinoPlayer) -> void:
         _set_event_feedback("TOCO! • %s" % defender.data.display_name, Color(0.35, 0.9, 1.0), 0.9)
         _play_sfx("res://audio/sfx/block.wav")
     else:
-        var foul_chance := GameTuning.BLOCK_FOU…12161 tokens truncated…overy_team: int
+        var foul_chance := GameTuning.BLOCK_FOUL_CHANCE + maxf(0.0, 0.7 - defense) * 0.10
+        if not training_mode and rng.randf() <= clampf(foul_chance, 0.10, 0.30):
+            _start_free_throws(last_shooter, maxi(2, last_shot_value), defender, "FALTA NO TOCO")
+        else:
+            feedback_label.text = "QUASE TOCOU"
+
+func request_rebound(player: DinoPlayer) -> void:
+    if player == null or not is_gameplay_live() or not player.can_attempt_rebound():
+        return
+    if ball.state != MeteorBall.BallState.SHOT and ball.state != MeteorBall.BallState.LOOSE:
+        return
+    if ball.state == MeteorBall.BallState.SHOT and ball.linear_velocity.y >= 0.0:
+        feedback_label.text = "ESPERE A BOLA DESCER"
+        return
+    if ball.global_position.y > GameTuning.REBOUND_TIMING_MAX_HEIGHT:
+        feedback_label.text = "BOLA AINDA ALTA"
+        return
+
+    var horizontal_distance := _flat_distance(player.global_position, ball.global_position)
+    if horizontal_distance > GameTuning.REBOUND_JUMP_REACH:
+        feedback_label.text = "FORA DA ZONA DE REBOTE"
+        return
+
+    player.consume_rebound_attempt()
+    player.play_action_visual("REBOUND")
+    var timing := clampf(1.0 - absf(ball.global_position.y - GameTuning.REBOUND_IDEAL_HEIGHT) / GameTuning.REBOUND_TIMING_RANGE, 0.0, 1.0)
+    var height_score := clampf((player.data.gameplay_height - GameTuning.MIN_GAMEPLAY_HEIGHT) / (GameTuning.MAX_GAMEPLAY_HEIGHT - GameTuning.MIN_GAMEPLAY_HEIGHT), 0.0, 1.0)
+    var physical := float(player.data.strength + player.data.defense) / 200.0
+    var chance := clampf(0.22 + timing * 0.46 + physical * 0.20 + height_score * 0.12, 0.18, 0.96)
+    if player.boxing_out:
+        chance += GameTuning.BOX_OUT_REBOUND_BONUS
+    if player.data.instinct_name == "Muralha Fóssil":
+        chance += 0.10
+    if match_number == 6 and player.team_id == TEAM_AWAY:
+        chance += 0.08
+    var rebounding_opponent := _closest_defender_to_player(player)
+    if rebounding_opponent != null and rebounding_opponent.boxing_out and player.global_position.distance_to(rebounding_opponent.global_position) <= GameTuning.BOX_OUT_CONTACT_RADIUS:
+        chance -= 0.13
+    chance = clampf(chance, 0.12, 0.98)
+
+    if rng.randf() <= chance:
+        ball.make_loose()
+        _give_ball_to(player, "REBOTE NO TEMPO")
+        _set_event_feedback("▲ REBOTE NO TEMPO • %s" % player.data.display_name, Color(0.45, 0.9, 1.0), 0.75)
+    else:
+        var timing_word := "CEDO" if ball.global_position.y > GameTuning.REBOUND_IDEAL_HEIGHT else "TARDE"
+        feedback_label.text = "REBOTE %s • timing %d%%" % [timing_word, roundi(timing * 100.0)]
+
+func request_instinct(player: DinoPlayer) -> void:
+    if player == null or not is_gameplay_live():
+        return
+    var team := player.team_id
+    if is_instinct_active(team):
+        feedback_label.text = "INSTINTO JÁ ESTÁ ATIVO"
+        return
+    if float(instinct_meter[team]) < GameTuning.INSTINCT_MAX:
+        feedback_label.text = "INSTINTO %d%%" % roundi(float(instinct_meter[team]))
+        return
+    instinct_meter[team] = 0.0
+    instinct_time_left[team] = GameTuning.INSTINCT_DURATION
+    _set_event_feedback("☄ INSTINTO METEORO • %s" % player.data.instinct_name, Color(1.0, 0.55, 0.15), 1.4)
+    _play_sfx("res://audio/sfx/instinct.wav")
+
+func request_pickup_or_steal(player: DinoPlayer) -> void:
+    if player == null or player.has_ball:
+        return
+
+    if ball.state == MeteorBall.BallState.LOOSE and player.global_position.distance_to(ball.global_position) <= GameTuning.REBOUND_PICKUP_RADIUS:
+        _give_ball_to(player, "REBOTE")
+        return
+
+    if ball.state != MeteorBall.BallState.HELD or not is_instance_valid(ball.holder):
+        return
+    if not (ball.holder is DinoPlayer):
+        return
+
+    var holder := ball.holder as DinoPlayer
+    if holder.team_id == player.team_id:
+        return
+    if player.global_position.distance_to(holder.global_position) > GameTuning.STEAL_REACH:
+        return
+    if not player.can_attempt_steal():
+        return
+
+    player.consume_steal_attempt()
+    var defense_factor := float(player.data.defense) / 100.0
+    var protection_factor := float(holder.data.passing + holder.data.strength) / 200.0
+    if holder.protecting_ball:
+        protection_factor += 0.42
+    if holder.data.instinct_name == "Carga Tríplice":
+        protection_factor += 0.10
+    var chance := clampf(0.18 + defense_factor * 0.38 - protection_factor * 0.20, 0.08, 0.48)
+    if rng.randf() <= chance:
+        _register_turnover(holder, "ROUBO", player.team_id)
+        holder.release_ball()
+        _stat_inc(player, "steals", 1)
+        _gain_instinct(player.team_id, GameTuning.INSTINCT_STEAL_GAIN)
+        _give_ball_to(player, "ROUBO!")
+        if match_number == 7 and player.team_id == TEAM_AWAY:
+            _gain_nightclaw_takeover(GameTuning.NIGHT_TAKEOVER_STEAL_GAIN)
+    else:
+        var foul_chance := GameTuning.STEAL_REACH_FOUL_CHANCE + maxf(0.0, 0.70 - defense_factor) * 0.10
+        if not training_mode and rng.randf() <= clampf(foul_chance, 0.08, 0.24):
+            _call_nonshooting_foul(player, holder, "FALTA NA TENTATIVA DE ROUBO")
+        else:
+            feedback_label.text = "MÃO VAZIA"
+
+func _release_shot(shooter: DinoPlayer, timing_quality: float, held_seconds: float = GameTuning.SHOT_IDEAL_HOLD) -> void:
+    var target_hoop := _attack_hoop(shooter.team_id)
+    var contest := _calculate_contest(shooter, target_hoop)
+    var openness := 1.0 - contest
+    var skill := float(shooter.data.shooting) / 100.0
+    var fatigue_penalty := clampf((45.0 - shooter.stamina) / 45.0, 0.0, 1.0) * 0.16
+    var quality := skill * 0.45 + timing_quality * 0.35 + openness * 0.20 - fatigue_penalty
+    if shooter.data.instinct_name == "Eco Lunar" and contest < 0.25:
+        quality += 0.05
+    if is_instinct_active(shooter.team_id):
+        quality += GameTuning.INSTINCT_SHOT_BONUS
+    quality = clampf(quality, 0.0, 1.0)
+
+    var distance := _flat_distance(shooter.global_position, target_hoop)
+    last_shot_value = 3 if distance >= GameTuning.THREE_POINT_DISTANCE else 2
+    _record_shot_attempt(shooter, last_shot_value)
+    shooter.play_action_visual("SHOT")
+    shooter.release_ball()
+    possession_team = shooter.team_id
+    last_shot_team = shooter.team_id
+    last_shooter = shooter
+
+    last_shot_type = "3PT" if last_shot_value == 3 else "JUMPER"
+    var flight := clampf(GameTuning.SHOT_MIN_FLIGHT + distance * 0.012, GameTuning.SHOT_MIN_FLIGHT, GameTuning.SHOT_MAX_FLIGHT)
+    var miss_strength := pow(1.0 - quality, 1.35) * 0.78
+    if quality > 0.91:
+        miss_strength *= 0.35
+    var angle := rng.randf_range(0.0, TAU)
+    var miss := Vector3(cos(angle) * miss_strength, 0.0, sin(angle) * miss_strength * 0.82)
+    ball.launch_arc(target_hoop + miss, flight, shooter.team_id, shooter, last_shot_value, last_shot_type)
+
+    if shooter.controlled:
+        var is_green := absf(held_seconds - GameTuning.SHOT_IDEAL_HOLD) <= _green_window()
+        var timing_label := "PERFEITO" if is_green else ("CEDO" if held_seconds < GameTuning.SHOT_IDEAL_HOLD else "TARDE")
+        var shot_text := "%s • %dPT" % [timing_label, last_shot_value]
+        if shot_feedback_enabled:
+            shot_text += " • %s • Q %d%%" % [_contest_label(contest), roundi(quality * 100.0)]
+        if is_green:
+            _set_event_feedback("◆ GREEN RELEASE ◆  " + shot_text, Color(0.35, 1.0, 0.52), 1.0)
+            _play_sfx("res://audio/sfx/green.wav")
+        else:
+            feedback_label.text = shot_text
+
+func _select_pass_target(passer: DinoPlayer, input_dir: Vector2) -> DinoPlayer:
+    var teammates := _team_players(passer.team_id)
+    var candidates: Array = []
+    for candidate in teammates:
+        if candidate != passer:
+            candidates.append(candidate)
+    if candidates.is_empty():
+        return null
+
+    var desired := Vector3(input_dir.x, 0.0, input_dir.y)
+    var use_direction := desired.length() > 0.25
+    if use_direction:
+        desired = desired.normalized()
+
+    var best: DinoPlayer = candidates[0]
+    var best_score := -10000.0
+    for candidate in candidates:
+        var to_candidate := candidate.global_position - passer.global_position
+        to_candidate.y = 0.0
+        var distance := maxf(0.01, to_candidate.length())
+        var direction_score := 0.0
+        if use_direction:
+            direction_score = desired.dot(to_candidate.normalized()) * 4.0
+        else:
+            direction_score = _openness_score(candidate) * 2.5
+        var score := direction_score - distance * 0.06 + _openness_score(candidate)
+        if score > best_score:
+            best_score = score
+            best = candidate
+    return best
+
+func _best_lob_target(passer: DinoPlayer, input_dir: Vector2 = Vector2.ZERO) -> DinoPlayer:
+    var candidates: Array = []
+    for candidate in _team_players(passer.team_id):
+        if candidate != passer:
+            candidates.append(candidate)
+    if candidates.is_empty():
+        return null
+
+    var desired := Vector3(input_dir.x, 0.0, input_dir.y)
+    var use_direction := desired.length() > 0.25
+    if use_direction:
+        desired = desired.normalized()
+    var hoop := _attack_hoop(passer.team_id)
+    var best: DinoPlayer = null
+    var best_score := -999.0
+    for candidate in candidates:
+        var to_candidate := candidate.global_position - passer.global_position
+        to_candidate.y = 0.0
+        var hoop_distance := _flat_distance(candidate.global_position, hoop)
+        var score := (GameTuning.ALLEY_TARGET_MAX_DISTANCE - hoop_distance) * 0.75
+        score += _openness_score(candidate) * 1.15
+        score += float(candidate.data.strength) / 100.0
+        if use_direction and to_candidate.length() > 0.01:
+            score += desired.dot(to_candidate.normalized()) * 2.2
+        if score > best_score:
+            best_score = score
+            best = candidate
+    return best
+
+func _complete_alley_oop(receiver: DinoPlayer) -> void:
+    if receiver == null:
+        return
+    var hoop := _attack_hoop(receiver.team_id)
+    if _flat_distance(receiver.global_position, hoop) > GameTuning.ALLEY_TARGET_MAX_DISTANCE:
+        _give_ball_to(receiver, "PASSE ALTO")
+        return
+
+    var contest := _calculate_contest(receiver, hoop)
+    var physical := float(receiver.data.strength) / 100.0
+    var height_score := clampf((receiver.data.gameplay_height - GameTuning.MIN_GAMEPLAY_HEIGHT) / (GameTuning.MAX_GAMEPLAY_HEIGHT - GameTuning.MIN_GAMEPLAY_HEIGHT), 0.0, 1.0)
+    var quality := clampf(0.64 + physical * 0.16 + height_score * 0.14 - contest * 0.20, 0.40, 0.98)
+    if receiver.data.instinct_name == "Turbina Óssea":
+        quality += 0.08
+    quality = clampf(quality, 0.0, 0.99)
+
+    _record_shot_attempt(receiver, 2)
+    receiver.play_action_visual("ALLEY")
+    possession_team = receiver.team_id
+    last_shot_team = receiver.team_id
+    last_shooter = receiver
+    last_shot_value = 2
+    last_shot_type = "ALLEY-OOP"
+
+    var miss_strength := pow(1.0 - quality, 1.5) * 0.40
+    var angle := rng.randf_range(0.0, TAU)
+    var miss := Vector3(cos(angle) * miss_strength, 0.0, sin(angle) * miss_strength)
+    ball.launch_arc(hoop + miss, GameTuning.DUNK_FLIGHT, receiver.team_id, receiver, 2, last_shot_type)
+    _set_event_feedback("△ ALLEY-OOP • %s" % receiver.data.display_name, Color(0.4, 0.86, 1.0), 0.9)
+
+func _update_ball_state_and_capture() -> void:
+    if not is_instance_valid(ball):
+        return
+
+    if ball.state == MeteorBall.BallState.PASS:
+        if is_instance_valid(ball.intended_receiver):
+            var receiver := ball.intended_receiver as DinoPlayer
+            if receiver != null and ball.pass_style == "LOB":
+                var lob_distance := receiver.global_position.distance_to(ball.global_position)
+                if lob_distance <= GameTuning.ALLEY_CATCH_RADIUS and ball.global_position.y >= GameTuning.ALLEY_MIN_BALL_HEIGHT and ball.global_position.y <= GameTuning.ALLEY_MAX_BALL_HEIGHT:
+                    _complete_alley_oop(receiver)
+                    return
+                if lob_distance <= GameTuning.PASS_RECEIVE_RADIUS * 1.15 and ball.global_position.y <= 2.20:
+                    _give_ball_to(receiver, "PASSE ALTO")
+                    return
+            elif receiver != null and receiver.global_position.distance_to(ball.global_position) <= GameTuning.PASS_RECEIVE_RADIUS and ball.global_position.y <= 2.15:
+                _give_ball_to(receiver, "RECEPÇÃO")
+                return
+
+        var intercept_radius := GameTuning.INTERCEPT_RADIUS * (0.78 if ball.pass_style == "LOB" else 1.0)
+        var reaction_ready := true
+        if match_number == 7 and ball.last_touch_team == TEAM_HOME:
+            intercept_radius *= lerpf(0.72, 1.15, last_pass_lane_risk)
+            intercept_radius += GameTuning.NIGHT_INTERCEPT_RADIUS_BONUS
+            if nightclaw_takeover_left > 0.0:
+                intercept_radius += GameTuning.NIGHT_TAKEOVER_INTERCEPT_BONUS
+            reaction_ready = ball.state_age_seconds() >= nightclaw_ai.reaction_time()
+        var interceptor: DinoPlayer = null
+        if reaction_ready:
+            interceptor = _closest_opponent_to_ball(ball.last_touch_team, intercept_radius)
+        if interceptor != null and ball.global_position.y <= (2.15 if ball.pass_style == "LOB" else 1.65) and ball.state_age_seconds() > 0.12:
+            _register_turnover(last_passer, "PASSE INTERCEPTADO", interceptor.team_id)
+            _give_ball_to(interceptor, "INTERCEPTAÇÃO")
+            if match_number == 7 and interceptor.team_id == TEAM_AWAY:
+                _gain_nightclaw_takeover(GameTuning.NIGHT_TAKEOVER_INTERCEPTION_GAIN)
+            return
+
+        if ball.state_age_seconds() > 1.45 or (ball.global_position.y < 0.42 and ball.linear_velocity.y <= 0.0):
+            ball.make_loose()
+
+    if ball.state == MeteorBall.BallState.SHOT:
+        if ball.state_age_seconds() > 0.48 and ball.linear_velocity.y < 0.0 and ball.global_position.y <= GameTuning.LOOSE_BALL_HEIGHT:
+            ball.make_loose()
+
+    if ball.state == MeteorBall.BallState.LOOSE and ball.state_age_seconds() >= GameTuning.REBOUND_AUTO_DELAY:
+        var rebounder := _nearest_player_to_ball(GameTuning.REBOUND_PICKUP_RADIUS)
+        if rebounder != null and ball.global_position.y <= GameTuning.LOOSE_BALL_HEIGHT:
+            _give_ball_to(rebounder, "REBOTE")
+
+func _update_screen_action(delta: float) -> void:
+    if not is_instance_valid(screen_screener) or not is_instance_valid(screen_ballhandler) or not is_instance_valid(screen_defender):
+        _clear_screen_state()
+        return
+    if screen_ballhandler.team_id != possession_team or not screen_ballhandler.has_ball:
+        _clear_screen_state()
+        return
+
+    if screen_setup_left > 0.0:
+        screen_setup_left = maxf(0.0, screen_setup_left - delta)
+        screen_screener.set_ai_target(screen_target, false)
+        if not screen_contact_done and screen_screener.global_position.distance_to(screen_defender.global_position) <= GameTuning.SCREEN_CONTACT_RADIUS:
+            screen_contact_done = true
+            screen_defender.apply_movement_slow(GameTuning.SCREEN_SLOW_SECONDS, GameTuning.SCREEN_SLOW_MULTIPLIER)
+            screen_setup_left = 0.0
+            screen_roll_left = GameTuning.SCREEN_ROLL_SECONDS
+            screen_screener.play_action_visual("SCREEN")
+            _set_event_feedback("BLOQUEIO PEGOU! • %s ROLA PARA O ARO" % screen_screener.data.display_name, Color(0.95, 0.78, 0.42), 0.8)
+        elif screen_setup_left <= 0.0:
+            _clear_screen_state()
+        return
+
+    if screen_roll_left > 0.0:
+        screen_roll_left = maxf(0.0, screen_roll_left - delta)
+        var hoop := _attack_hoop(screen_screener.team_id)
+        var roll_target := Vector3(hoop.x, 0.0, hoop.z)
+        var offset_sign := -1.0 if screen_screener.roster_index % 2 == 0 else 1.0
+        roll_target.x += 1.15 * offset_sign
+        roll_target.z += 1.6 if screen_screener.team_id == TEAM_HOME else -1.6
+        screen_screener.set_ai_target(roll_target, true)
+        if screen_roll_left <= 0.0:
+            _clear_screen_state()
+
+func _clear_screen_state() -> void:
+    screen_ballhandler = null
+    screen_screener = null
+    screen_defender = null
+    screen_setup_left = 0.0
+    screen_roll_left = 0.0
+    screen_contact_done = false
+
+func _update_ai(delta: float) -> void:
+    for key in ai_action_cooldowns.keys():
+        ai_action_cooldowns[key] = maxf(0.0, float(ai_action_cooldowns[key]) - delta)
+    for key in nightclaw_decision_cooldowns.keys():
+        nightclaw_decision_cooldowns[key] = maxf(
+            0.0,
+            float(nightclaw_decision_cooldowns[key]) - delta
+        )
+    for key in fossil_decision_cooldowns.keys():
+        fossil_decision_cooldowns[key] = maxf(
+            0.0,
+            float(fossil_decision_cooldowns[key]) - delta
+        )
+
+    for value in all_players:
+        var ai_player := value as DinoPlayer
+        if ai_player != controlled_player:
+            ai_player.set_ai_box_out(false)
+
+    var rebound_window := (ball.state == MeteorBall.BallState.SHOT and ball.linear_velocity.y < 0.0) or ball.state == MeteorBall.BallState.LOOSE
+    if rebound_window:
+        for value in all_players:
+            var rebound_player := value as DinoPlayer
+            if rebound_player == controlled_player:
+                continue
+            var defended_hoop := _defended_hoop(rebound_player.team_id)
+            var close_to_paint := _flat_distance(rebound_player.global_position, defended_hoop) <= 5.2
+            var defensive_rebounder := last_shot_team in [TEAM_HOME, TEAM_AWAY] and rebound_player.team_id != last_shot_team
+            var ironhorn_habit := match_number == 6 and rebound_player.team_id == TEAM_AWAY
+            if close_to_paint and defensive_rebounder and (ironhorn_habit or float(rebound_player.data.strength) >= 88.0):
+                rebound_player.set_ai_box_out(true)
+
+    if ball.state == MeteorBall.BallState.LOOSE:
+        for player in all_players:
+            if player == controlled_player:
+                continue
+            if player.ai_box_out:
+                var opponent := _closest_defender_to_player(player)
+                if opponent != null:
+                    var defended := _defended_hoop(player.team_id)
+                    var seal_dir := defended - opponent.global_position
+                    seal_dir.y = 0.0
+                    if seal_dir.length() > 0.05:
+                        player.set_ai_target(opponent.global_position + seal_dir.normalized() * 0.65, false)
+                    else:
+                        player.set_ai_target(player.global_position, false)
+                else:
+                    player.set_ai_target(player.global_position, false)
+            else:
+                player.set_ai_target(ball.global_position, true)
+        return
+
+    var offense := _team_players(possession_team)
+    var defense := _team_players(1 - possession_team)
+    var holder: DinoPlayer = null
+    if ball.state == MeteorBall.BallState.HELD and ball.holder is DinoPlayer:
+        holder = ball.holder as DinoPlayer
+
+    for player in offense:
+        if player == controlled_player:
+            continue
+        if player == holder:
+            _update_ai_ballhandler(player)
+        elif player == screen_screener and (screen_setup_left > 0.0 or screen_roll_left > 0.0):
+            pass
+        elif player.team_id == TEAM_HOME and player == home_cut_player and home_cut_time_left > 0.0:
+            var cut_target := _attack_hoop(TEAM_HOME) + Vector3(0.0, -GameTuning.HOOP_HEIGHT, 1.8)
+            player.set_ai_target(cut_target, true)
+        else:
+            player.set_ai_target(_spacing_anchor(player.team_id, player.roster_index), false)
+
+    for defender in defense:
+        if defender == controlled_player:
+            continue
+        var assignment := offense[defender.roster_index % offense.size()] as DinoPlayer
+        var night_defense := match_number == 7 and defender.team_id == TEAM_AWAY
+        var fossil_defense := match_number == 8 and defender.team_id == TEAM_AWAY
+        var defender_id := defender.get_instance_id()
+        if (night_defense or fossil_defense) and fake_defender_targets.has(defender_id):
+            var fake_target: Vector3 = fake_defender_targets[defender_id]
+            defender.set_ai_target(
+                fake_target,
+                false
+            )
+            continue
+        if defender.ai_box_out:
+            var defended_hoop := _defended_hoop(defender.team_id)
+            var seal_dir := defended_hoop - assignment.global_position
+            seal_dir.y = 0.0
+            var seal_target := assignment.global_position
+            if seal_dir.length() > 0.05:
+                seal_target += seal_dir.normalized() * 0.65
+            defender.set_ai_target(seal_target, false)
+            continue
+        var hoop := _attack_hoop(possession_team)
+        var toward_hoop := hoop - assignment.global_position
+        toward_hoop.y = 0.0
+        var contain := assignment.global_position
+        var contain_gap := GameTuning.AI_CONTAIN_GAP
+        var ember_press := match_number == 3 and defender.team_id == TEAM_AWAY
+        var tide_rotate := match_number == 4 and defender.team_id == TEAM_AWAY
+        var iron_body := match_number == 6 and defender.team_id == TEAM_AWAY
+        if ember_press:
+            contain_gap = GameTuning.EMBER_PRESS_GAP
+        if iron_body:
+            contain_gap = GameTuning.IRON_CONTAIN_GAP
+        if tide_rotate:
+            contain_gap *= 0.92
+            contain.x += sin(float(Time.get_ticks_msec()) / 650.0 + float(defender.roster_index)) * 0.38
+        if night_defense:
+            var decision := _nightclaw_decision_for(defender, assignment, holder)
+            var action := int(decision.get(
+                "action",
+                NightclawUtilityAI.DefensiveAction.CONTAIN
+            ))
+            var night_target := _nightclaw_defensive_target(
+                defender,
+                assignment,
+                holder,
+                action,
+                contain,
+                toward_hoop
+            )
+            var sprint_to_target := action in [
+                NightclawUtilityAI.DefensiveAction.PRESSURE_BALL,
+                NightclawUtilityAI.DefensiveAction.TRAP,
+                NightclawUtilityAI.DefensiveAction.RETREAT,
+            ]
+            defender.set_ai_target(night_target, sprint_to_target)
+            continue
+        if fossil_defense:
+            var fossil_decision := _fossil_decision_for(defender)
+            var scheme := int(fossil_decision.get(
+                "scheme",
+                FossilTechPredictiveAI.DefensiveScheme.BALANCED
+            ))
+            var fossil_target := _fossil_defensive_target(
+                defender,
+                assignment,
+                holder,
+                scheme,
+                contain,
+                toward_hoop
+            )
+            var fossil_sprint := scheme in [
+                FossilTechPredictiveAI.DefensiveScheme.JUMP_PASS_LANE,
+                FossilTechPredictiveAI.DefensiveScheme.EARLY_CLOSEOUT,
+                FossilTechPredictiveAI.DefensiveScheme.SWITCH_SCREEN,
+            ]
+            defender.set_ai_target(fossil_target, fossil_sprint)
+            continue
+        if toward_hoop.length() > 0.01:
+            contain += toward_hoop.normalized() * contain_gap
+        defender.set_ai_target(contain, assignment == holder or ember_press)
+
+
+func _nightclaw_decision_for(
+    defender: DinoPlayer,
+    assignment: DinoPlayer,
+    holder: DinoPlayer
+) -> Dictionary:
+    var id := defender.get_instance_id()
+    if not nightclaw_actions.has(id):
+        var initial_delay := nightclaw_ai.reaction_time()
+        var initial_decision := {
+            "action": NightclawUtilityAI.DefensiveAction.CONTAIN,
+            "reaction_delay": initial_delay,
+            "reason": "A defesa lê a formação antes de ajustar.",
+            "counterplay": nightclaw_ai.counterplay_hint(
+                NightclawUtilityAI.DefensiveAction.CONTAIN
+            ),
+        }
+        nightclaw_actions[id] = initial_decision
+        nightclaw_decision_cooldowns[id] = initial_delay
+        return initial_decision
+    if (
+        float(nightclaw_decision_cooldowns.get(id, 0.0)) > 0.0
+    ):
+        return nightclaw_actions[id]
+
+    var lane_risk := 0.0
+    if holder != null and assignment != holder:
+        var lane := PassingLaneAnalyzer.analyze(
+            holder.global_position,
+            assignment.global_position,
+            [defender],
+            holder.data.passing
+        )
+        lane_risk = float(lane.get("risk", 0.0))
+    var ball_pressure_value := 0.0
+    if holder != null:
+        ball_pressure_value = 1.0 - clampf(
+            defender.global_position.distance_to(holder.global_position) / 4.0,
+            0.0,
+            1.0
+        )
+        if assignment != holder:
+            ball_pressure_value *= 0.35
+    var context := {
+        "pass_lane_risk": lane_risk,
+        "ball_pressure_value": ball_pressure_value,
+        "transition_threat": 1.0 if (
+            transition_team == TEAM_HOME and transition_time_left > 0.0
+        ) else 0.0,
+        "help_available": _nightclaw_help_available(defender, holder),
+        "foul_risk": clampf(float(team_fouls[TEAM_AWAY]) / 6.0, 0.0, 1.0),
+    }
+    var decision := nightclaw_ai.choose_defensive_action(context)
+    nightclaw_actions[id] = decision
+    nightclaw_decision_cooldowns[id] = float(
+        decision.get("reaction_delay", nightclaw_ai.reaction_time())
+    )
+    _announce_nightclaw_adaptation(decision)
+    return decision
+
+
+func _nightclaw_help_available(defender: DinoPlayer, holder: DinoPlayer) -> bool:
+    if holder == null:
+        return false
+    for teammate_value in away_players:
+        var teammate := teammate_value as DinoPlayer
+        if teammate == defender:
+            continue
+        if teammate.global_position.distance_to(holder.global_position) <= 2.7:
+            return true
+    return false
+
+
+func _nightclaw_defensive_target(
+    defender: DinoPlayer,
+    assignment: DinoPlayer,
+    holder: DinoPlayer,
+    action: int,
+    contain: Vector3,
+    toward_hoop: Vector3
+) -> Vector3:
+    var target := contain
+    match action:
+        NightclawUtilityAI.DefensiveAction.DENY_LANE:
+            if holder != null and assignment != holder:
+                var lane := PassingLaneAnalyzer.distance_to_segment(
+                    defender.global_position,
+                    holder.global_position,
+                    assignment.global_position
+                )
+                var closest_point: Vector3 = lane.get("closest", contain)
+                target = closest_point
+                var receiver_direction := assignment.global_position - target
+                receiver_direction.y = 0.0
+                if receiver_direction.length() > 0.05:
+                    target += receiver_direction.normalized() * 0.25
+            elif toward_hoop.length() > 0.01:
+                target += toward_hoop.normalized() * GameTuning.NIGHT_CONTAIN_GAP
+        NightclawUtilityAI.DefensiveAction.PRESSURE_BALL:
+            if holder != null:
+                target = holder.global_position
+                var pressure_direction := _attack_hoop(holder.team_id) - target
+                pressure_direction.y = 0.0
+                if pressure_direction.length() > 0.05:
+                    target += pressure_direction.normalized() * 0.55
+        NightclawUtilityAI.DefensiveAction.TRAP:
+            if holder != null:
+                var side := -1.0 if defender.roster_index % 2 == 0 else 1.0
+                target = holder.global_position + Vector3(side * 0.55, 0.0, 0.25)
+        NightclawUtilityAI.DefensiveAction.RETREAT:
+            var protected_hoop := _defended_hoop(defender.team_id)
+            if holder != null:
+                target = holder.global_position.lerp(protected_hoop, 0.58)
+                target.y = 0.0
+            else:
+                target = Vector3(protected_hoop.x, 0.0, protected_hoop.z)
+        _:
+            if toward_hoop.length() > 0.01:
+                target += toward_hoop.normalized() * GameTuning.NIGHT_CONTAIN_GAP
+    target.x = clampf(target.x, -6.2, 6.2)
+    target.z = clampf(target.z, -11.4, 11.4)
+    return target
+
+
+func _announce_nightclaw_adaptation(decision: Dictionary) -> void:
+    if adaptation_announce_cooldown > 0.0:
+        return
+    var repeated := tendency_model.repeated_action()
+    if repeated == &"" or repeated == last_announced_adaptation:
+        return
+    last_announced_adaptation = repeated
+    adaptation_announce_cooldown = 5.0
+    _set_event_feedback(
+        "NIGHTCLAW LEU SEU PADRÃO • %s" % String(
+            decision.get("counterplay", "mude o ritmo")
+        ),
+        Color(0.68, 0.56, 1.0),
+        2.2
+    )
+
+
+func _fossil_decision_for(defender: DinoPlayer) -> Dictionary:
+    var id := defender.get_instance_id()
+    if not fossil_actions.has(id):
+        var initial_delay := fossil_ai.reaction_time()
+        var initial := {
+            "scheme": FossilTechPredictiveAI.DefensiveScheme.BALANCED,
+            "prediction": &"",
+            "confidence": 0.0,
+            "reaction_delay": initial_delay,
+            "reason": "A Fossil Tech aguarda evidência antes de rotacionar.",
+            "counterplay": fossil_ai.counterplay_hint(
+                FossilTechPredictiveAI.DefensiveScheme.BALANCED
+            ),
+        }
+        fossil_actions[id] = initial
+        fossil_decision_cooldowns[id] = initial_delay
+        return initial
+    if float(fossil_decision_cooldowns.get(id, 0.0)) > 0.0:
+        return fossil_actions[id]
+
+    var decision := fossil_ai.choose_defensive_scheme(sequence_model.predict_next())
+    fossil_actions[id] = decision
+    fossil_decision_cooldowns[id] = float(
+        decision.get("reaction_delay", fossil_ai.reaction_time())
+    )
+    _announce_fossil_prediction(decision)
+    return decision
+
+
+func _fossil_defensive_target(
+    defender: DinoPlayer,
+    assignment: DinoPlayer,
+    holder: DinoPlayer,
+    scheme: int,
+    contain: Vector3,
+    toward_hoop: Vector3
+) -> Vector3:
+    var target := contain
+    match scheme:
+        FossilTechPredictiveAI.DefensiveScheme.JUMP_PASS_LANE:
+            if holder != null and assignment != holder:
+                var lane := PassingLaneAnalyzer.distance_to_segment(
+                    defender.global_position,
+                    holder.global_position,
+                    assignment.global_position
+                )
+                target = lane.get("closest", contain)
+                var toward_receiver := assignment.global_position - target
+                toward_receiver.y = 0.0
+                if toward_receiver.length() > 0.05:
+                    target += toward_receiver.normalized() * 0.32
+            elif holder != null:
+                target = holder.global_position
+                var shade := _attack_hoop(holder.team_id) - holder.global_position
+                shade.y = 0.0
+                if shade.length() > 0.05:
+                    target += shade.normalized() * 0.72
+        FossilTechPredictiveAI.DefensiveScheme.WALL_PAINT:
+            var protected_hoop := _defended_hoop(defender.team_id)
+            var threat := holder if holder != null and assignment == holder else assignment
+            target = threat.global_position.lerp(protected_hoop, 0.34)
+            target.y = 0.0
+        FossilTechPredictiveAI.DefensiveScheme.EARLY_CLOSEOUT:
+            target = assignment.global_position
+            if toward_hoop.length() > 0.05:
+                target += toward_hoop.normalized() * 0.48
+        FossilTechPredictiveAI.DefensiveScheme.SWITCH_SCREEN:
+            if is_instance_valid(screen_ballhandler) and is_instance_valid(screen_screener):
+                if assignment == screen_ballhandler:
+                    target = screen_screener.global_position
+                elif assignment == screen_screener:
+                    target = screen_ballhandler.global_position
+                elif toward_hoop.length() > 0.05:
+                    target += toward_hoop.normalized() * GameTuning.FOSSIL_CONTAIN_GAP
+            elif toward_hoop.length() > 0.05:
+                target += toward_hoop.normalized() * GameTuning.FOSSIL_CONTAIN_GAP
+        _:
+            if toward_hoop.length() > 0.05:
+                target += toward_hoop.normalized() * GameTuning.FOSSIL_CONTAIN_GAP
+    target.x = clampf(target.x, -6.2, 6.2)
+    target.z = clampf(target.z, -11.4, 11.4)
+    return target
+
+
+func _announce_fossil_prediction(decision: Dictionary) -> void:
+    if fossil_announce_cooldown > 0.0 or fossil_model_broken_left > 0.0:
+        return
+    var predicted := StringName(decision.get("prediction", &""))
+    if predicted == &"" or predicted == fossil_last_announced_prediction:
+        return
+    fossil_last_announced_prediction = predicted
+    fossil_announce_cooldown = 4.0
+    _set_event_feedback(
+        "FOSSIL TECH PROJETA %s • %s" % [
+            _tendency_label(predicted),
+            String(decision.get("counterplay", "varie a sequência")),
+        ],
+        Color(0.30, 0.92, 0.78),
+        2.2
+    )
+
+func _update_ai_ballhandler(player: DinoPlayer) -> void:
+    if float(instinct_meter[player.team_id]) >= GameTuning.INSTINCT_MAX and not is_instinct_active(player.team_id):
+        request_instinct(player)
+    var hoop := _attack_hoop(player.team_id)
+    var to_hoop := hoop - player.global_position
+    to_hoop.y = 0.0
+    var ember_attack := match_number == 3 and player.team_id == TEAM_AWAY
+    var tide_attack := match_number == 4 and player.team_id == TEAM_AWAY
+    var sky_attack := match_number == 5 and player.team_id == TEAM_AWAY
+    var iron_attack := match_number == 6 and player.team_id == TEAM_AWAY
+    var night_attack := match_number == 7 and player.team_id == TEAM_AWAY
+    var fossil_attack := match_number == 8 and player.team_id == TEAM_AWAY
+    var night_transition := (
+        night_attack
+        and transition_team == TEAM_AWAY
+        and transition_time_left > 0.0
+    )
+    var drive_target := player.global_position
+    if to_hoop.length() > 0.01:
+        var drive_step := GameTuning.EMBER_DRIVE_STEP if ember_attack else 3.0
+        if night_transition:
+            drive_step = 4.2
+        drive_target += to_hoop.normalized() * drive_step
+    drive_target.x = clampf(drive_target.x, -5.2, 5.2)
+    player.set_ai_target(
+        drive_target,
+        ember_attack or night_transition or to_hoop.length() > 7.0
+    )
+
+    var delay_min := GameTuning.AI_ACTION_MIN_DELAY
+    var delay_max := GameTuning.AI_ACTION_MAX_DELAY
+    if ember_attack:
+        delay_min = GameTuning.EMBER_AI_MIN_DELAY
+        delay_max = GameTuning.EMBER_AI_MAX_DELAY
+    elif tide_attack:
+        delay_min = GameTuning.TIDE_AI_MIN_DELAY
+        delay_max = GameTuning.TIDE_AI_MAX_DELAY
+    elif sky_attack:
+        delay_min = GameTuning.SKY_AI_MIN_DELAY
+        delay_max = GameTuning.SKY_AI_MAX_DELAY
+    elif iron_attack:
+        delay_min = GameTuning.IRON_AI_MIN_DELAY
+        delay_max = GameTuning.IRON_AI_MAX_DELAY
+    elif night_attack:
+        delay_min = GameTuning.NIGHT_AI_MIN_DELAY
+        delay_max = GameTuning.NIGHT_AI_MAX_DELAY
+        if night_transition:
+            delay_min *= 0.82
+            delay_max *= 0.82
+    elif fossil_attack:
+        delay_min = GameTuning.FOSSIL_AI_MIN_DELAY
+        delay_max = GameTuning.FOSSIL_AI_MAX_DELAY
+    var ai_factor := _difficulty_ai_multiplier() if player.team_id == TEAM_AWAY else 1.0
+    delay_min /= ai_factor
+    delay_max /= ai_factor
+    var id := player.get_instance_id()
+    if not ai_action_cooldowns.has(id):
+        ai_action_cooldowns[id] = rng.randf_range(delay_min, delay_max)
+    if float(ai_action_cooldowns[id]) > 0.0:
+        return
+
+    var contest := _calculate_contest(player, hoop)
+    var finish_limit := 0.82 if ember_attack else 0.70
+    var shot_range := 8.2 if ember_attack else 7.6
+    var shot_contest_limit := 0.72 if ember_attack else 0.62
+    var sky_target := _best_lob_target(player) if sky_attack else null
+    var sky_lob_ready := sky_attack and sky_target != null and _flat_distance(sky_target.global_position, hoop) <= GameTuning.ALLEY_TARGET_MAX_DISTANCE
+    if fossil_attack:
+        var fossil_receiver := _best_ai_pass_target(player)
+        var finish_ev := -1.0
+        if to_hoop.length() <= GameTuning.FINISH_MAX_DISTANCE:
+            var finish_quality := clampf(
+                0.52
+                + float(player.data.shooting) * 0.0022
+                + float(player.data.strength) * 0.0014
+                - contest * 0.34,
+                0.18,
+                0.96
+            )
+            finish_ev = finish_quality * 2.0
+        var shot_ev := -1.0
+        if to_hoop.length() <= 8.0:
+            var shot_value := 3.0 if to_hoop.length() >= GameTuning.THREE_POINT_DISTANCE else 2.0
+            var range_penalty := maxf(0.0, to_hoop.length() - 4.0) * 0.025
+            var shot_quality := clampf(
+                0.30
+                + float(player.data.shooting) * 0.0052
+                - contest * 0.48
+                - range_penalty,
+                0.12,
+                0.88
+            )
+            shot_ev = shot_quality * shot_value
+        var pass_ev := -1.0
+        if fossil_receiver != null:
+            var progress_gain := maxf(
+                0.0,
+                to_hoop.length() - _flat_distance(fossil_receiver.global_position, hoop)
+            )
+            pass_ev = (
+                0.48
+                + _openness_score(fossil_receiver) * 0.46
+                + progress_gain * 0.035
+                + float(player.data.passing) * 0.0015
+            )
+        var fossil_choice := fossil_ai.choose_offensive_action({
+            "finish_ev": finish_ev,
+            "shot_ev": shot_ev,
+            "pass_ev": pass_ev,
+        })
+        match StringName(fossil_choice.get("action", &"pass")):
+            &"finish":
+                request_finish(player)
+            &"shot":
+                var fossil_timing := clampf(
+                    0.62 + float(player.data.shooting) / 260.0 + rng.randf_range(-0.06, 0.06),
+                    0.50,
+                    0.97
+                )
+                _release_shot(player, fossil_timing)
+            _:
+                if fossil_receiver != null:
+                    _prepare_pass_context(player, fossil_receiver, false)
+                    last_passer_by_team[player.team_id] = player
+                    player.release_ball()
+                    var fossil_pass_speed := lerpf(
+                        GameTuning.PASS_SPEED,
+                        GameTuning.STRONG_PASS_SPEED,
+                        float(player.data.passing) / 100.0
+                    )
+                    ball.launch_pass(
+                        fossil_receiver.global_position + Vector3.UP * 1.02,
+                        fossil_receiver,
+                        fossil_pass_speed,
+                        player.team_id
+                    )
+                    feedback_label.text = "FOSSIL TECH ESCOLHE O MAIOR VALOR"
+        ai_action_cooldowns[id] = rng.randf_range(delay_min, delay_max)
+        return
+    if night_transition:
+        var transition_receiver := _best_transition_target(player)
+        if transition_receiver != null:
+            _prepare_pass_context(player, transition_receiver, false)
+            last_passer_by_team[player.team_id] = player
+            player.release_ball()
+            ball.launch_pass(
+                transition_receiver.global_position + Vector3.UP * 1.02,
+                transition_receiver,
+                GameTuning.STRONG_PASS_SPEED,
+                player.team_id
+            )
+            feedback_label.text = "NIGHTCLAW ACELERA A TRANSIÇÃO"
+            ai_action_cooldowns[id] = rng.randf_range(delay_min, delay_max)
+            return
+        if to_hoop.length() <= GameTuning.FINISH_MAX_DISTANCE:
+            request_finish(player)
+            ai_action_cooldowns[id] = rng.randf_range(delay_min, delay_max)
+            return
+    if iron_attack and screen_call_cooldown <= 0.0 and screen_screener == null and to_hoop.length() > 4.2 and rng.randf() <= 0.38:
+        request_screen(player)
+        ai_action_cooldowns[id] = rng.randf_range(delay_min, delay_max)
+        return
+    if iron_attack and to_hoop.length() <= GameTuning.POST_MAX_DISTANCE and contest >= 0.18 and rng.randf() <= GameTuning.IRON_POST_BIAS:
+        request_post_move(player)
+        ai_action_cooldowns[id] = rng.randf_range(delay_min, delay_max)
+        return
+    if sky_lob_ready and rng.randf() <= GameTuning.SKY_LOB_BIAS:
+        request_lob(player)
+    elif to_hoop.length() <= GameTuning.FINISH_MAX_DISTANCE and contest < finish_limit:
+        request_finish(player)
+    elif tide_attack and contest > 0.16:
+        var tide_receiver := _best_ai_pass_target(player)
+        if tide_receiver != null:
+            _prepare_pass_context(player, tide_receiver, false)
+            last_passer_by_team[player.team_id] = player
+            player.release_ball()
+            ball.launch_pass(tide_receiver.global_position + Vector3.UP * 1.02, tide_receiver, GameTuning.STRONG_PASS_SPEED * GameTuning.TIDE_PASS_BONUS, player.team_id)
+            feedback_label.text = "TIDEFANG INVERTE O LADO"
+    elif to_hoop.length() <= shot_range and contest < shot_contest_limit:
+        var base_timing := clampf(0.62 + float(player.data.shooting) / 260.0 + rng.randf_range(-0.08, 0.08), 0.48, 0.96)
+        _release_shot(player, base_timing)
+    else:
+        var receiver := _best_ai_pass_target(player)
+        if receiver != null:
+            _prepare_pass_context(player, receiver, false)
+            last_passer_by_team[player.team_id] = player
+            player.release_ball()
+            var pass_speed := lerpf(GameTuning.PASS_SPEED, GameTuning.STRONG_PASS_SPEED, float(player.data.passing) / 100.0)
+            ball.launch_pass(receiver.global_position + Vector3.UP * 1.02, receiver, pass_speed, player.team_id)
+            feedback_label.text = "%s movimenta a bola" % _team_name(player.team_id)
+
+    ai_action_cooldowns[id] = rng.randf_range(delay_min, delay_max)
+
+
+func _best_transition_target(passer: DinoPlayer) -> DinoPlayer:
+    var hoop := _attack_hoop(passer.team_id)
+    var passer_distance := _flat_distance(passer.global_position, hoop)
+    var best: DinoPlayer = null
+    var best_distance := passer_distance - 1.25
+    for candidate_value in _team_players(passer.team_id):
+        var candidate := candidate_value as DinoPlayer
+        if candidate == passer:
+            continue
+        var distance := _flat_distance(candidate.global_position, hoop)
+        if distance < best_distance and _openness_score(candidate) >= 0.35:
+            best_distance = distance
+            best = candidate
+    return best
+
+func _best_ai_pass_target(passer: DinoPlayer) -> DinoPlayer:
+    var best: DinoPlayer = null
+    var best_score := -1000.0
+    for candidate in _team_players(passer.team_id):
+        if candidate == passer:
+            continue
+        var score := _openness_score(candidate) * 2.0
+        score -= passer.global_position.distance_to(candidate.global_position) * 0.04
+        score -= candidate.global_position.distance_to(_attack_hoop(candidate.team_id)) * 0.015
+        if score > best_score:
+            best_score = score
+            best = candidate
+    return best
+
+func _spacing_anchor(team: int, index: int) -> Vector3:
+    var anchor := Vector3.ZERO
+    if team == TEAM_HOME:
+        if index == 0:
+            anchor = Vector3(0.0, 0.0, -4.2)
+        elif index == 1:
+            anchor = Vector3(-4.4, 0.0, -5.8)
+        else:
+            anchor = Vector3(4.2, 0.0, -7.2)
+    else:
+        if index == 0:
+            anchor = Vector3(0.0, 0.0, 4.2)
+        elif index == 1:
+            anchor = Vector3(4.4, 0.0, 5.8)
+        else:
+            anchor = Vector3(-4.2, 0.0, 7.2)
+
+    # Playbook da Vale Fóssil. A jogada muda apenas os alvos dos jogadores sem bola.
+    if team == TEAM_HOME:
+        var play := _current_play_call()
+        if play == "ABRIR QUADRA":
+            if index == 1:
+                anchor = Vector3(-5.6, 0.0, -6.2)
+            elif index == 2:
+                anchor = Vector3(5.6, 0.0, -6.2)
+        elif play == "BACKDOOR" and index == 1:
+            var cut_phase := (sin(float(Time.get_ticks_msec()) / 520.0) + 1.0) * 0.5
+            anchor = Vector3(-4.6, 0.0, lerpf(-5.2, -10.2, cut_phase))
+
+    # Ember Ridge identity: alas atacam mais fundo e a equipe mantém pressão constante.
+    if match_number == 3 and team == TEAM_AWAY:
+        var ember_phase := float(Time.get_ticks_msec()) / 1000.0 + float(index) * 1.7
+        if index > 0:
+            anchor.z += 1.15
+            anchor.x += sin(ember_phase * 1.4) * 0.65
+
+    # Canopy Institute identity: off-ball players keep exchanging lanes.
+    if match_number == 2 and team == TEAM_AWAY:
+        var phase := float(Time.get_ticks_msec()) / 1000.0 + float(index) * 2.1
+        anchor.x += sin(phase * 1.15) * 1.35
+        anchor.z += cos(phase * 0.82) * 0.65
+
+    # Tidefang identity: players alternate weak side positions, teaching defensive rotation.
+    if match_number == 4 and team == TEAM_AWAY:
+        var tide_phase := floor(float(Time.get_ticks_msec()) / (GameTuning.TIDE_WEAKSIDE_SWING_SECONDS * 1000.0))
+        var side := -1.0 if int(tide_phase + index) % 2 == 0 else 1.0
+        if index == 1:
+            anchor.x = 5.1 * side
+            anchor.z = 6.0
+        elif index == 2:
+            anchor.x = -4.7 * side
+            anchor.z = 7.4
+
+    # Skycrest identity: cutters attack the vertical lane in waves, creating lob windows.
+    if match_number == 5 and team == TEAM_AWAY:
+        var sky_phase := float(Time.get_ticks_msec()) / 1000.0
+        if index == 1:
+            anchor.x = sin(sky_phase * 1.35) * 3.8
+            anchor.z = lerpf(5.4, 10.3, (sin(sky_phase * 1.9) + 1.0) * 0.5)
+        elif index == 2:
+            anchor.x = cos(sky_phase * 1.15) * 2.2
+            anchor.z = lerpf(6.2, 10.8, (cos(sky_phase * 1.55) + 1.0) * 0.5)
+
+    # Ironhorn identity: compact spacing around the paint to create screens, seals and post entries.
+    if match_number == 6 and team == TEAM_AWAY:
+        if index == 1:
+            anchor = Vector3(3.0, 0.0, 7.2)
+        elif index == 2:
+            anchor = Vector3(-2.0, 0.0, 9.1)
+
+    # Nightclaw converts turnovers into three lanes and otherwise keeps passing lanes open.
+    if match_number == 7 and team == TEAM_AWAY:
+        if transition_team == TEAM_AWAY and transition_time_left > 0.0:
+            if index == 1:
+                anchor = Vector3(4.8, 0.0, 9.4)
+            elif index == 2:
+                anchor = Vector3(-4.6, 0.0, 8.6)
+        elif index == 1:
+            anchor = Vector3(5.2, 0.0, 5.8)
+        elif index == 2:
+            anchor = Vector3(-4.2, 0.0, 7.5)
+    return anchor
+
+func _calculate_contest(shooter: DinoPlayer, target_hoop: Vector3) -> float:
+    var opponents := _team_players(1 - shooter.team_id)
+    var nearest: DinoPlayer = null
+    var nearest_distance := 999.0
+    for defender in opponents:
+        var distance := shooter.global_position.distance_to(defender.global_position)
+        if distance < nearest_distance:
+            nearest_distance = distance
+            nearest = defender
+    if nearest == null:
+        return 0.0
+
+    var hoop_dir := target_hoop - shooter.global_position
+    hoop_dir.y = 0.0
+    var defender_dir := nearest.global_position - shooter.global_position
+    defender_dir.y = 0.0
+    var in_front := false
+    if hoop_dir.length() > 0.01 and defender_dir.length() > 0.01:
+        in_front = hoop_dir.normalized().dot(defender_dir.normalized()) > 0.15
+
+    if nearest_distance <= GameTuning.CONTEST_HEAVY_DISTANCE:
+        return 0.88 if in_front else 0.68
+    if nearest_distance <= GameTuning.CONTEST_MEDIUM_DISTANCE:
+        return 0.58 if in_front else 0.42
+    if nearest_distance <= GameTuning.CONTEST_LIGHT_DISTANCE:
+        return 0.28 if in_front else 0.16
+    return 0.0
+
+func _contest_label(contest: float) -> String:
+    if contest >= 0.70:
+        return "MUITO CONTESTADO"
+    if contest >= 0.45:
+        return "CONTESTADO"
+    if contest >= 0.18:
+        return "PRESSÃO LEVE"
+    return "ABERTO"
+
+func _openness_score(player: DinoPlayer) -> float:
+    var opponents := _team_players(1 - player.team_id)
+    var nearest := 99.0
+    for defender in opponents:
+        nearest = minf(nearest, player.global_position.distance_to(defender.global_position))
+    return clampf(nearest / 3.0, 0.0, 1.5)
+
+
+func _register_turnover(
+    responsible_player: DinoPlayer,
+    reason: String,
+    recovery_team: int
 ) -> void:
     var turnover_team := ball.last_touch_team
     if is_instance_valid(responsible_player):
