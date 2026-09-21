@@ -1,22 +1,22 @@
-# METEOR HOOPS: ROTA DO METEORO — Prototype v1.0
+# METEOR HOOPS: ROTA DO METEORO — Prototype v1.1
 
-Vertical slice de basquete arcade 3D para **Godot 4.7.2**. A v1.0 adiciona o oitavo jogo da campanha, a Fossil Tech, com previsão transparente de sequências, contrajogo deliberado e decisões ofensivas por valor esperado — sem alterar secretamente atributos, física ou chance de acerto.
+Vertical slice de basquete arcade 3D para **Godot 4.7.2**. A v1.1 adiciona a semifinal contra a Apex Dominion: uma equipe que alterna planos coletivos visíveis e transforma ações físicas legítimas em pressão de arena, sempre com contrajogo explícito e sem alterar secretamente atributos, física ou chance de acerto.
 
-## Destaques da v1.0
+## Destaques da v1.1
 
-- Jogos 1–8 jogáveis, cada escola com identidade tática própria.
-- Jogo 8: **Vale Fóssil x Fossil Tech — O Jogo dos Dados**.
-- Modelo local aprende transições entre ações, exige evidência mínima, aplica decaimento e guarda somente contagens agregadas.
-- O HUD mostra a próxima ação prevista, confiança, precisão acumulada e progresso para **Quebrar o Modelo**.
-- Escolher uma ação diferente da previsão gera disrupção; ao completar a barra, rotações preditivas são suspensas por seis segundos.
-- A defesa transforma previsões de passe, drive, arremesso e corta-luz em rotações distintas, sempre após um atraso visível.
-- O ataque da Fossil Tech compara valor esperado de passe, arremesso e finalização usando apenas estado observável.
-- A finta de passe e a variação consciente de sequências funcionam como ações-isca.
-- Save v7 preserva campanha, evolução, temporada e os perfis agregados de frequência e sequência.
-- HQ pré e pós-jogo do capítulo 8.
-- Testes de contrato cobrem confiança, persistência, reação, contrajogo e estado Modelo Quebrado.
+- Jogos 1–9 jogáveis, cada escola com identidade tática própria.
+- Jogo 9: **Vale Fóssil x Apex Dominion — O Rugido**.
+- Planos defensivos visíveis: Pressão na Bola, Troca Total, Parede no Garrafão e Controle do Rebote.
+- Planos ofensivos visíveis: Quadra Aberta, Bloqueio de Potência, Eixo no Poste e Ataque ao Rebote.
+- Bloqueios, post, rebotes ofensivos, tocos, turnovers forçados e cestas no garrafão carregam o **Rugido da Dominion**.
+- Ações variadas, posses seguras e paradas defensivas constroem **Compostura**; repetição e turnovers a reduzem.
+- Compostura cheia ativa o **Silêncio da Vale**, cancela o Rugido e aumenta temporariamente o tempo de reorganização da Apex.
+- O Rugido acelera apenas a troca de planos; não modifica velocidade, atributos, física ou probabilidade de acerto.
+- Save v8 preserva campanha, evolução, temporada e perfis agregados de frequência, sequência e semifinal.
+- HQ pré e pós-jogo do capítulo 9, com a final contra a Tyrant Crown como próximo nó.
+- Testes de contrato cobrem reação mínima, seleção de planos, persistência, variedade e justiça.
 
-Também permanecem disponíveis os sistemas da v0.9:
+Também permanecem disponíveis os sistemas da v1.0 e v0.9:
 
 - Jogo 7: **Vale Fóssil x Nightclaw Academy — Luzes Apagadas**.
 - IA utilitária avalia contenção, pressão na bola, negação de passe, trap e recuo.
@@ -93,6 +93,28 @@ Elenco:
 
 Previsões erradas enchem **Quebrar o Modelo**. Ao chegar a 100%, a Fossil Tech volta temporariamente à marcação base e reage mais devagar. O sistema não lê teclas futuras, não muda resultados e não chama serviços externos.
 
+## Apex Dominion
+
+A Apex atua como um time coordenado. A cada leitura, escolhe um plano coletivo usando apenas estado observável da partida: posse, relógio, bloqueio ativo, ameaça ao aro, força no post, ocupação do garrafão e prioridade de rebote. O plano atual aparece no HUD antes de reorganizar os três jogadores em quadra.
+
+Elenco:
+
+- **Rexon — Tyrannosaurus / Armador — Comando Alfa:** capitão que convoca o plano coletivo.
+- **Stride — Allosaurus / Ala — Passo Soberano:** troca marcações e ocupa o lado fraco.
+- **Maul — Giganotosaurus / Pivô — Peso do Trono:** organiza bloqueios, selos e rebotes.
+- **Ram — Carnotaurus / Ala — Investida Real:** reserva que acelera a pressão na bola.
+- **Bastion — Ankylosaurus / Pivô — Fortaleza Dourada:** reserva defensivo para garrafão e box-out.
+
+### Como silenciar o Rugido
+
+- Leia o plano no HUD e responda: passe de segurança contra pressão, recusa ou mismatch contra troca, espaçamento contra parede e box-out contra rebote.
+- Alterne passe, finta, proteção, corta-luz, jogo de costas, infiltração e arremesso dentro da mesma posse.
+- Evite repetir a mesma solução nas quatro ações recentes.
+- Termine a defesa com rebote ou turnover e proteja a bola no ataque.
+- Ao completar Compostura, use os seis segundos de Silêncio da Vale antes que a Apex consiga reorganizar rapidamente.
+
+Rugido e Silêncio alteram somente o intervalo de decisão dos planos. Corrida, contato, arremesso e física continuam usando as regras normais da partida.
+
 ## Sistemas de IA
 
 | Sistema | Papel | Limite de justiça |
@@ -103,6 +125,8 @@ Previsões erradas enchem **Quebrar o Modelo**. Ao chegar a 100%, a Fossil Tech 
 | `FairMatchDirector` | Dicas e mudança de estratégia | Proíbe alterar acerto, física ou atributos ocultos |
 | `SequencePredictionModel` | Próxima ação por contexto e transições agregadas | Evidência mínima, confiança limitada e decaimento |
 | `FossilTechPredictiveAI` | Rotação preditiva e escolha ofensiva por valor | Previsão visível, reação mínima e estado vulnerável |
+| `ApexCoordinationAI` | Seleção de planos coletivos ofensivos e defensivos | Plano visível, reação mínima e nenhuma alteração de resultado |
+| `ComposureTracker` | Recompensa variedade, posse segura e parada defensiva | Guarda somente totais agregados e pune repetição |
 
 Tudo roda localmente, sem enviar telemetria ou dados pessoais para serviços externos. O save armazena somente contagens agregadas de ações de gameplay.
 
@@ -116,7 +140,7 @@ Tudo roda localmente, sem enviar telemetria ou dados pessoais para serviços ext
 6. Parede de Chifres — Ironhorn Institute — jogável.
 7. **Luzes Apagadas — Nightclaw Academy — jogável.**
 8. **O Jogo dos Dados — Fossil Tech — jogável.**
-9. O Rugido — Apex Dominion — semifinal planejada.
+9. **O Rugido — Apex Dominion — semifinal jogável.**
 10. O Meteoro — Tyrant Crown Academy — final planejada.
 
 ## Executar
@@ -134,20 +158,23 @@ godot --headless --path . --script res://tests/test_ai_contracts.gd
 
 ## Estrutura
 
-- `systems/ai/` — tendências, sequências, linhas de passe, decisões preditivas, utility AI e diretor justo.
+- `systems/ai/` — tendências, sequências, linhas de passe, planos coletivos, Compostura, utility AI e diretor justo.
 - `data/match_catalog.gd` — campanha, elencos e atributos.
 - `data/game_tuning.gd` — parâmetros centralizados de gameplay.
 - `scenes/prototype_match.gd` — regras e integração da partida.
-- `systems/save_manager.gd` — save v7, migrações, progressão e temporada.
+- `systems/save_manager.gd` — save v8, migrações, progressão e temporada.
 - `content/story/comics/chapter_07/` — HQ pré-Nightclaw.
 - `content/story/comics/chapter_07_post/` — HQ pós-Nightclaw.
 - `content/story/comics/chapter_08/` — HQ pré-Fossil Tech.
 - `content/story/comics/chapter_08_post/` — HQ pós-Fossil Tech.
+- `content/story/comics/chapter_09/` — HQ pré-Apex Dominion.
+- `content/story/comics/chapter_09_post/` — HQ pós-Apex Dominion.
 - `docs/NIGHTCLAW_DESIGN.md` — intenção e contrajogo do Jogo 7.
 - `docs/FOSSIL_TECH_DESIGN.md` — previsão, falsa certeza e contrajogo do Jogo 8.
+- `docs/APEX_DOMINION_DESIGN.md` — planos, Rugido, Compostura e justiça do Jogo 9.
 - `docs/AI_STRATEGY.md` — arquitetura, justiça e próximos passos da IA.
-- `docs/TESTE_v1.0.md` — roteiro de playtest.
-- `docs/VALIDACAO_v1.0.md` — evidências automatizadas da versão.
+- `docs/TESTE_v1.1.md` — roteiro de playtest.
+- `docs/VALIDACAO_v1.1.md` — evidências automatizadas da versão.
 
 ## Estado do protótipo
 

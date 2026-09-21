@@ -1,4 +1,4 @@
-# Estratégia de IA — v1.0
+# Estratégia de IA — v1.1
 
 ## Princípio
 
@@ -13,6 +13,8 @@ A IA de Meteor Hoops deve criar decisões legíveis e contrajogo. O objetivo nã
 | Sequência | Transições agregadas entre ações e previsão contextual da próxima decisão |
 | Decisão | Pontuação utilitária com pequena variação determinística por partida |
 | Valor esperado | Comparação ofensiva entre passe, arremesso e finalização observáveis |
+| Coordenação | Plano compartilhado que reposiciona os três atletas da Apex |
+| Contrajogo | Compostura por variedade, posse segura e parada defensiva |
 | Execução | Alvos de movimento, contenção, negação, trap e contra-ataque |
 | Direção | Dicas contextuais e mudanças limitadas de pesos estratégicos |
 | Explicação | Tendência detectada, takeover e mensagem de contrajogada no HUD |
@@ -30,6 +32,11 @@ A IA de Meteor Hoops deve criar decisões legíveis e contrajogo. O objetivo nã
 - A previsão, a confiança e o estado vulnerável ficam visíveis antes do compromisso defensivo.
 - Uma previsão errada é preservada como erro; o sistema não a reclassifica depois da ação.
 - O estado Modelo Quebrado suspende antecipação e aumenta o atraso de reação.
+- Todo plano da Apex é nomeado no HUD antes de coordenar o posicionamento.
+- Rugido e Silêncio alteram somente o tempo de troca do plano coletivo.
+- Rugido não modifica velocidade, atributos, chance de acerto ou física da bola.
+- A reação da Apex respeita piso de **0,34 s**, inclusive durante o Rugido.
+- A Compostura recompensa ações distintas e pune repetição dentro da janela recente.
 
 Esses contratos são executados por `tests/test_ai_contracts.gd` no CI.
 
@@ -42,7 +49,7 @@ Modelos generativos continuam úteis no pipeline de produção — concept art, 
 ## Próximas evoluções
 
 1. Separar `prototype_match.gd` em controladores de posse, arbitragem, estatísticas e IA.
-2. Adicionar intenção compartilhada para companheiros, evitando dois atletas ocuparem o mesmo espaço.
+2. Extrair planos coletivos para recursos configuráveis, permitindo novas escolas sem aumentar o controlador principal.
 3. Registrar eventos de playtest em arquivo local opt-in e gerar relatório de balanceamento.
 4. Criar replay fantasma determinístico para reproduzir turnovers e bugs.
 5. Criar um técnico contextual que explique uma alternativa após duas falhas semelhantes, sem interromper a posse.
@@ -62,3 +69,6 @@ Modelos generativos continuam úteis no pipeline de produção — concept art, 
 - previsões quebradas por posse;
 - tempo até o jogador provocar o primeiro Modelo Quebrado;
 - distribuição das escolhas de maior valor da Fossil Tech.
+- distribuição e duração dos planos da Apex;
+- ações que carregam o Rugido por posse;
+- sequência média de Compostura e Silêncios ativados por partida.

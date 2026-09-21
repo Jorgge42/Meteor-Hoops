@@ -48,7 +48,14 @@ const MATCHES := [
         "pre_chapter": "res://data/chapter_08.tres",
         "post_chapter": "res://data/chapter_08_post.tres"
     },
-    {"id": "match_09", "number": 9, "title": "O RUGIDO", "school": "APEX DOMINION", "subtitle": "Semifinal. O melhor time físico antes da coroa.", "color": "eab308", "playable": false},
+    {
+        "id": "match_09", "number": 9, "title": "O RUGIDO",
+        "school": "APEX DOMINION",
+        "subtitle": "Semifinal. Planos coletivos, pressão física e um ginásio que precisa ser silenciado.",
+        "color": "eab308", "playable": true,
+        "pre_chapter": "res://data/chapter_09.tres",
+        "post_chapter": "res://data/chapter_09_post.tres"
+    },
     {"id": "match_10", "number": 10, "title": "O METEORO", "school": "TYRANT CROWN ACADEMY", "subtitle": "Final. Drax espera no centro da quadra pelo Troféu Meteoro.", "color": "dc2626", "playable": false}
 ]
 
@@ -114,6 +121,14 @@ static func _apply_progression_bonus(entry: Dictionary, progress: Dictionary) ->
     return result
 
 static func away_roster(match_number: int) -> Array:
+    if match_number == 9:
+        return [
+            _player("rexon", "Rexon", "Tyrannosaurus", "Armador", 82, 84, 91, 94, 98, 2.22, "Comando Alfa", "Capitão da Apex Dominion. Convoca o plano coletivo e transforma força em decisões coordenadas."),
+            _player("stride", "Stride", "Allosaurus", "Ala", 88, 87, 82, 90, 88, 2.05, "Passo Soberano", "Ala completo que troca marcações, abre a quadra e corta quando a defesa perde contato."),
+            _player("maul", "Maul", "Giganotosaurus", "Pivô", 66, 76, 78, 95, 99, 2.34, "Peso do Trono", "Pivô dominante em bloqueios, selos e box-out. Sua vantagem nasce da posição, não de bônus ocultos."),
+            _player("ram", "Ram", "Carnotaurus", "Ala", 92, 80, 76, 86, 93, 1.96, "Investida Real", "Reserva que acelera a pressão na bola e ataca o aro depois das trocas."),
+            _player("bastion", "Bastion", "Ankylosaurus", "Pivô", 54, 70, 72, 97, 99, 2.30, "Fortaleza Dourada", "Reserva defensivo que fecha o garrafão e encerra posses com box-out disciplinado.")
+        ]
     if match_number == 8:
         return [
             _player("axiom", "Axiom", "Troodon", "Armador", 88, 84, 96, 90, 42, 1.76, "Hipótese Viva", "Capitão da Fossil Tech. Encadeia ações e só antecipa uma jogada quando o modelo reúne evidência suficiente."),
