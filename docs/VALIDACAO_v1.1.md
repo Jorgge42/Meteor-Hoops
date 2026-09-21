@@ -27,4 +27,22 @@ Resultado estático: metadados, referências, recursos, parser GDScript e SVGs v
 
 ## GitHub Actions
 
-A execução final do Godot 4.7.2 e a integridade da árvore remota serão registradas aqui antes da integração em `main`.
+Execução: [Godot validation #14](https://github.com/Jorgge42/Meteor-Hoops/actions/runs/35587449980)
+
+Job `Import, contracts and boot`: **sucesso**.
+
+| Etapa | Resultado |
+|---|---|
+| Setup Godot 4.7.2 | sucesso |
+| Validate repository resources | sucesso |
+| Import project | sucesso |
+| Run AI contracts | sucesso |
+| Boot main scene | sucesso |
+
+## Integridade da publicação
+
+A árvore remota da implementação (`ce1a35179fb544631da3a9031e927fa46d56f609`) coincide exatamente com a árvore do commit local validado. Isso confirma que os 27 arquivos alterados, inclusive o controlador principal, chegaram completos ao PR.
+
+## Resultado
+
+A v1.1 atende aos contratos automatizados e está pronta para integração. O playtest humano descrito em `docs/TESTE_v1.1.md` continua recomendado para balancear o ritmo do Rugido, a clareza dos planos e a velocidade de preenchimento da Compostura.
