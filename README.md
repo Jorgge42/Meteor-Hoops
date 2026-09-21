@@ -1,22 +1,20 @@
-# METEOR HOOPS: ROTA DO METEORO — Prototype v1.1
+# METEOR HOOPS: ROTA DO METEORO — Prototype v1.2
 
-Vertical slice de basquete arcade 3D para **Godot 4.7.2**. A v1.1 adiciona a semifinal contra a Apex Dominion: uma equipe que alterna planos coletivos visíveis e transforma ações físicas legítimas em pressão de arena, sempre com contrajogo explícito e sem alterar secretamente atributos, física ou chance de acerto.
+Vertical slice de basquete arcade 3D para **Godot 4.7.2**. A v1.2 completa a campanha com a final contra a Tyrant Crown: Drax combina tendências, sequências e coordenação coletiva em decretos visíveis, cada um com uma condição explícita de quebra. A IA adapta decisões, nunca resultados, atributos ou física.
 
-## Destaques da v1.1
+## Destaques da v1.2
 
-- Jogos 1–9 jogáveis, cada escola com identidade tática própria.
-- Jogo 9: **Vale Fóssil x Apex Dominion — O Rugido**.
-- Planos defensivos visíveis: Pressão na Bola, Troca Total, Parede no Garrafão e Controle do Rebote.
-- Planos ofensivos visíveis: Quadra Aberta, Bloqueio de Potência, Eixo no Poste e Ataque ao Rebote.
-- Bloqueios, post, rebotes ofensivos, tocos, turnovers forçados e cestas no garrafão carregam o **Rugido da Dominion**.
-- Ações variadas, posses seguras e paradas defensivas constroem **Compostura**; repetição e turnovers a reduzem.
-- Compostura cheia ativa o **Silêncio da Vale**, cancela o Rugido e aumenta temporariamente o tempo de reorganização da Apex.
-- O Rugido acelera apenas a troca de planos; não modifica velocidade, atributos, física ou probabilidade de acerto.
-- Save v8 preserva campanha, evolução, temporada e perfis agregados de frequência, sequência e semifinal.
-- HQ pré e pós-jogo do capítulo 9, com a final contra a Tyrant Crown como próximo nó.
-- Testes de contrato cobrem reação mínima, seleção de planos, persistência, variedade e justiça.
+- Jogos 1–10 jogáveis e campanha completa, da Quartz Academy à Tyrant Crown.
+- Jogo 10: **Vale Fóssil x Tyrant Crown Academy — O Meteoro**.
+- Meta-IA local escolhe entre Trono de Ferro, Caçada Noturna, Destino Escrito e Comando Real a partir do estado observável e dos padrões agregados do jogador.
+- O HUD revela decreto, duração, previsão quando aplicável e a contrajogada necessária.
+- Quebrar três decretos diferentes carrega **Legado** e ativa **Coroa Partida** por sete segundos, suspendendo formações especiais.
+- A Coroa não recebe bônus de arremesso, corrida, contato, alcance de interceptação ou física da bola.
+- Save v9 preserva campanha, evolução, temporada e perfis agregados das quatro escolas de IA.
+- HQ pré e pós-jogo do capítulo 10 e encerramento próprio para a campanha.
+- Testes de contrato cobrem escolha dos decretos, reação mínima, persistência, quebra da Coroa e justiça.
 
-Também permanecem disponíveis os sistemas da v1.0 e v0.9:
+Também permanecem disponíveis os sistemas das versões anteriores:
 
 - Jogo 7: **Vale Fóssil x Nightclaw Academy — Luzes Apagadas**.
 - IA utilitária avalia contenção, pressão na bola, negação de passe, trap e recuo.
@@ -115,6 +113,17 @@ Elenco:
 
 Rugido e Silêncio alteram somente o intervalo de decisão dos planos. Corrida, contato, arremesso e física continuam usando as regras normais da partida.
 
+## Tyrant Crown
+
+Drax funciona como um chefe tático. A cada janela de leitura, a meta-IA combina distância do aro, força no post, frequência de passes e infiltrações, risco recente de linha de passe, relógio, rebote, bloqueios e uma previsão de sequência. A ordem escolhida é anunciada antes de reorganizar a equipe.
+
+- **Trono de Ferro:** fecha o garrafão e prioriza posição e rebote. Quebre convertendo um jumper ou uma bola de três.
+- **Caçada Noturna:** pressiona a bola e ocupa linhas de passe. Quebre usando `V` e completando o passe seguinte.
+- **Destino Escrito:** mostra no HUD a próxima ação prevista e antecipa essa continuação. Quebre escolhendo outra ação.
+- **Comando Real:** sincroniza troca, pressão e cobertura. Quebre usando três ações diferentes na posse antes de pontuar.
+
+Cada decreto distinto quebrado concede 34% de **Legado**. Ao dominar três, a **Coroa Partida** suspende todas as formações especiais por sete segundos. Depois disso, Drax pode reconstruir sua estratégia, mas os dados continuam locais, agregados e limitados no save.
+
 ## Sistemas de IA
 
 | Sistema | Papel | Limite de justiça |
@@ -127,6 +136,8 @@ Rugido e Silêncio alteram somente o intervalo de decisão dos planos. Corrida, 
 | `FossilTechPredictiveAI` | Rotação preditiva e escolha ofensiva por valor | Previsão visível, reação mínima e estado vulnerável |
 | `ApexCoordinationAI` | Seleção de planos coletivos ofensivos e defensivos | Plano visível, reação mínima e nenhuma alteração de resultado |
 | `ComposureTracker` | Recompensa variedade, posse segura e parada defensiva | Guarda somente totais agregados e pune repetição |
+| `TyrantCrownMetaAI` | Combina leituras anteriores e seleciona decretos da final | Decreto e quebra visíveis, reação mínima e sem leitura de input futuro |
+| `CrownLegacyTracker` | Registra contrajogo e abre a janela Coroa Partida | Exige três decretos distintos e persiste apenas totais agregados |
 
 Tudo roda localmente, sem enviar telemetria ou dados pessoais para serviços externos. O save armazena somente contagens agregadas de ações de gameplay.
 
@@ -141,7 +152,7 @@ Tudo roda localmente, sem enviar telemetria ou dados pessoais para serviços ext
 7. **Luzes Apagadas — Nightclaw Academy — jogável.**
 8. **O Jogo dos Dados — Fossil Tech — jogável.**
 9. **O Rugido — Apex Dominion — semifinal jogável.**
-10. O Meteoro — Tyrant Crown Academy — final planejada.
+10. **O Meteoro — Tyrant Crown Academy — final jogável.**
 
 ## Executar
 
@@ -162,19 +173,22 @@ godot --headless --path . --script res://tests/test_ai_contracts.gd
 - `data/match_catalog.gd` — campanha, elencos e atributos.
 - `data/game_tuning.gd` — parâmetros centralizados de gameplay.
 - `scenes/prototype_match.gd` — regras e integração da partida.
-- `systems/save_manager.gd` — save v8, migrações, progressão e temporada.
+- `systems/save_manager.gd` — save v9, migrações, progressão e temporada.
 - `content/story/comics/chapter_07/` — HQ pré-Nightclaw.
 - `content/story/comics/chapter_07_post/` — HQ pós-Nightclaw.
 - `content/story/comics/chapter_08/` — HQ pré-Fossil Tech.
 - `content/story/comics/chapter_08_post/` — HQ pós-Fossil Tech.
 - `content/story/comics/chapter_09/` — HQ pré-Apex Dominion.
 - `content/story/comics/chapter_09_post/` — HQ pós-Apex Dominion.
+- `content/story/comics/chapter_10/` — HQ pré-Tyrant Crown.
+- `content/story/comics/chapter_10_post/` — epílogo da campanha.
 - `docs/NIGHTCLAW_DESIGN.md` — intenção e contrajogo do Jogo 7.
 - `docs/FOSSIL_TECH_DESIGN.md` — previsão, falsa certeza e contrajogo do Jogo 8.
 - `docs/APEX_DOMINION_DESIGN.md` — planos, Rugido, Compostura e justiça do Jogo 9.
+- `docs/TYRANT_CROWN_DESIGN.md` — meta-IA, decretos, Legado e justiça do Jogo 10.
 - `docs/AI_STRATEGY.md` — arquitetura, justiça e próximos passos da IA.
-- `docs/TESTE_v1.1.md` — roteiro de playtest.
-- `docs/VALIDACAO_v1.1.md` — evidências automatizadas da versão.
+- `docs/TESTE_v1.2.md` — roteiro de playtest.
+- `docs/VALIDACAO_v1.2.md` — evidências automatizadas da versão.
 
 ## Estado do protótipo
 

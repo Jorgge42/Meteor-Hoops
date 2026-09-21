@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+<defs><radialGradient id="burst"><stop stop-color="#fff7bd"/><stop offset="0.28" stop-color="#fbbf24"/><stop offset="1" stop-color="#102126"/></radialGradient></defs>
+<rect width="1280" height="720" fill="#061318"/>
+<circle cx="640" cy="330" r="360" fill="url(#burst)" opacity="0.72"/>
+<path d="M640 90L688 225L835 168L750 290L882 350L735 360L760 505L666 395L570 512L594 365L445 350L580 290L495 170L640 225Z" fill="#fff8cf" opacity="0.36"/>
+<path d="M555 210L590 280L625 210L660 280L695 210L730 280V330H555Z" fill="none" stroke="#ef4444" stroke-width="16"/>
+<path d="M548 335L615 380M732 335L665 380" stroke="#ef4444" stroke-width="16"/>
+<text x="70" y="82" font-family="sans-serif" font-size="28" fill="#fde047">EPÍLOGO • DEPOIS DA COROA</text>
+<text x="70" y="132" font-family="sans-serif" font-size="19" fill="#b7c2cd">PÁGINA 1</text>
+<text x="640" y="560" text-anchor="middle" font-family="sans-serif" font-size="44" font-weight="700" fill="#ffffff">O PLACAR ZERA. A COROA NÃO.</text>
+<text x="640" y="608" text-anchor="middle" font-family="sans-serif" font-size="26" fill="#fff3b0">Ela se parte em quatro decretos — e nenhum sobrevive à Vale.</text>
+<text x="1160" y="680" text-anchor="end" font-family="sans-serif" font-size="23" fill="#fde047">FIM • 01</text>
+</svg>

@@ -52,7 +52,7 @@ func _show_main_menu() -> void:
     vbox.add_child(title)
 
     var sub := Label.new()
-    sub.text = "ROTA DO METEORO  •  vertical slice v1.1"
+    sub.text = "ROTA DO METEORO  •  campanha completa v1.2"
     sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     sub.modulate = Color(0.75, 0.82, 0.9)
     vbox.add_child(sub)
@@ -67,7 +67,7 @@ func _show_main_menu() -> void:
     vbox.add_child(_menu_button("TEMPORADA", _show_season))
     vbox.add_child(_menu_button("CONFIGURAÇÕES", _show_settings))
     vbox.add_child(_menu_button("CRÉDITOS", func():
-        _set_status("Godot Engine • MIT\nMETEOR HOOPS: ROTA DO METEORO — protótipo técnico v1.1.\nHQs SVG atuais são placeholders e podem ser substituídas pelas artes finais.")
+        _set_status("Godot Engine • MIT\nMETEOR HOOPS: ROTA DO METEORO — protótipo técnico v1.2.\nHQs SVG atuais são placeholders e podem ser substituídas pelas artes finais.")
     ))
 
     var progress := Label.new()
@@ -84,7 +84,9 @@ func _show_main_menu() -> void:
     vbox.add_child(status_label)
 
     var completed: Array = profile.get("completed_matches", [])
-    if completed.has("match_09"):
+    if completed.has("match_10"):
+        _set_status("CAMPEÕES DO METEORO. A campanha está completa — todos os dez jogos permanecem disponíveis para revanche e evolução.")
+    elif completed.has("match_09"):
         _set_status("Você silenciou a Apex Dominion. A final contra a Tyrant Crown é o último nó da Rota.")
     elif completed.has("match_08"):
         _set_status("A semifinal contra a Apex Dominion está liberada. Leia o plano, varie decisões e construa Compostura.")
@@ -286,7 +288,7 @@ func _show_campaign_map() -> void:
     var legend := Label.new()
     legend.position = Vector2(315, 660)
     legend.size = Vector2(860, 30)
-    legend.text = "✓ concluído   •   ☄ disponível   •   🔒 bloqueado   •   Jogos 1–9 jogáveis nesta build"
+    legend.text = "✓ concluído   •   ☄ disponível   •   🔒 bloqueado   •   Jogos 1–10 jogáveis nesta build"
     legend.modulate = Color(0.72, 0.8, 0.88)
     campaign_layer.add_child(legend)
 
@@ -562,7 +564,7 @@ func _show_season() -> void:
     note.position = Vector2(65, 530)
     note.size = Vector2(1110, 82)
     note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-    note.text = "EVOLUÇÃO v1.1: carreira, upgrades e perfis agregados permanecem salvos. Nightclaw lê frequências, Fossil Tech calcula sequências e Apex Dominion coordena planos visíveis que podem ser atrasados pela Compostura."
+    note.text = "EVOLUÇÃO v1.2: carreira, upgrades e perfis agregados permanecem salvos. Na final, a Tyrant Crown combina tendências, sequências e planos visíveis; quebrar três decretos abre a janela Coroa Partida."
     note.modulate = Color(0.72, 0.82, 0.9)
     season_layer.add_child(note)
 
@@ -665,6 +667,13 @@ func _format_stats_table(stats: Dictionary) -> String:
         int(team_turnovers.get(0, team_turnovers.get("0", 0))),
         int(points_after_turnovers.get(0, points_after_turnovers.get("0", 0))),
     ])
+    var crown_summary: Dictionary = stats.get("crown_summary", {})
+    if int(crown_summary.get("edicts_broken", 0)) > 0:
+        lines.append("FINAL • DECRETOS %d • COROAS PARTIDAS %d • PREVISÕES EVITADAS %d" % [
+            int(crown_summary.get("edicts_broken", 0)),
+            int(crown_summary.get("crowns_shattered", 0)),
+            int(crown_summary.get("predictions_evaded", 0)),
+        ])
     return "\n".join(lines)
 
 func _format_progression(summary: Array) -> String:
@@ -701,6 +710,7 @@ func _start_match(training: bool, config: Dictionary) -> void:
     match_root.adaptive_profile = profile.get("adaptive_profile", {}).duplicate(true)
     match_root.sequence_profile = profile.get("sequence_profile", {}).duplicate(true)
     match_root.semifinal_profile = profile.get("semifinal_profile", {}).duplicate(true)
+    match_root.final_profile = profile.get("final_profile", {}).duplicate(true)
     match_root.difficulty_name = String(profile.get("difficulty", "ADVENTURE"))
     match_root.shot_feedback_enabled = bool(profile.get("shot_feedback", true))
     match_root.reduced_fx = bool(profile.get("reduced_fx", false))
@@ -750,7 +760,10 @@ func _show_result_overlay(home_won: bool, home_score: int, away_score: int) -> v
     var number := int(current_match.get("number", 1))
     var opponent := String(current_match.get("school", "RIVAL"))
     var headline := Label.new()
-    headline.text = "ROTA AVANÇA" if home_won else "A ROTA CONTINUA"
+    if home_won and number == 10:
+        headline.text = "CAMPEÕES DO METEORO"
+    else:
+        headline.text = "ROTA AVANÇA" if home_won else "A ROTA CONTINUA"
     headline.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     headline.add_theme_font_size_override("font_size", 34)
     box.add_child(headline)
@@ -772,7 +785,12 @@ func _show_result_overlay(home_won: bool, home_score: int, away_score: int) -> v
     body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     body.custom_minimum_size = Vector2(560, 72)
     if home_won:
-        body.text = "O próximo nó da Rota do Meteoro foi aberto. No Jogo 1, o Treino Livre também é liberado." if number == 1 else "A Vale Fóssil sobe mais um degrau. A próxima escola já aparece no mapa da temporada."
+        if number == 10:
+            body.text = "A Coroa caiu sem truques: leitura, variedade e coragem fecharam a Rota. A Vale Fóssil ergue o Troféu Meteoro."
+        elif number == 1:
+            body.text = "O próximo nó da Rota do Meteoro foi aberto. O Treino Livre também foi liberado."
+        else:
+            body.text = "A Vale Fóssil sobe mais um degrau. A próxima escola já aparece no mapa da temporada."
     else:
         body.text = "Você pode tentar novamente. Derrotas ficam registradas apenas como último resultado e não apagam o progresso anterior."
     box.add_child(body)

@@ -34,10 +34,19 @@ jobs:
         run: python3 tools/validate_project.py
 
       - name: Import project
-        run: godot --headless --path . --import
+        run: |
+          set -o pipefail
+          godot --headless --path . --import 2>&1 | tee /tmp/godot-import.log
+          ! grep -E "SCRIPT ERROR|ERROR: Failed to load script" /tmp/godot-import.log
 
       - name: Run AI contracts
-        run: godot --headless --path . --script res://tests/test_ai_contracts.gd
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://tests/test_ai_contracts.gd 2>&1 | tee /tmp/godot-contracts.log
+          ! grep -E "SCRIPT ERROR|ERROR: Failed to load script" /tmp/godot-contracts.log
 
       - name: Boot main scene
-        run: godot --headless --path . --quit-after 5
+        run: |
+          set -o pipefail
+          godot --headless --path . --quit-after 5 2>&1 | tee /tmp/godot-boot.log
+          ! grep -E "SCRIPT ERROR|ERROR: Failed to load script" /tmp/godot-boot.log

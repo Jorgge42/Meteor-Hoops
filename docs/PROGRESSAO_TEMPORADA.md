@@ -1,4 +1,4 @@
-# Progressão e temporada — v1.1
+# Progressão e temporada — v1.2
 
 ## Filosofia
 A carreira tem duas camadas: identidade automática e escolha do jogador. O objetivo é permitir personalização sem transformar todos os dinossauros no mesmo atleta.
@@ -37,3 +37,5 @@ Acumula:
 - MVPs.
 
 A estrutura já permite futuramente recordes, metas, conquistas, cards compartilháveis e Hall da Fama.
+
+O save v9 também mantém, separadamente das estatísticas dos atletas, os totais agregados da final: partidas contra a Tyrant Crown, recorde de decretos quebrados e quantidade de Coroas Partidas. Esses contadores não concedem atributos ocultos; servem para histórico, feedback e futuras conquistas.

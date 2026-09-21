@@ -22,12 +22,12 @@ def validate_metadata(failures: list[str]) -> None:
     version = (ROOT / "VERSION.txt").read_text(encoding="utf-8").strip()
     project = (ROOT / "project.godot").read_text(encoding="utf-8")
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    if version != "v1.1":
+    if version != "v1.2":
         fail(f"VERSION.txt inesperado: {version}", failures)
-    if "Prototype v1.1" not in project:
-        fail("project.godot não anuncia a v1.1", failures)
-    if "Prototype v1.1" not in readme:
-        fail("README não anuncia a v1.1", failures)
+    if "Prototype v1.2" not in project:
+        fail("project.godot não anuncia a v1.2", failures)
+    if "Prototype v1.2" not in readme:
+        fail("README não anuncia a v1.2", failures)
 
 
 def validate_resource_references(failures: list[str]) -> None:
@@ -53,6 +53,8 @@ def validate_story_svg(failures: list[str]) -> None:
         ROOT / "content/story/comics/chapter_08_post",
         ROOT / "content/story/comics/chapter_09",
         ROOT / "content/story/comics/chapter_09_post",
+        ROOT / "content/story/comics/chapter_10",
+        ROOT / "content/story/comics/chapter_10_post",
     ]
     for story_root in story_roots:
         pages = sorted(story_root.glob("page_*.svg"))
@@ -75,12 +77,16 @@ def validate_required_files(failures: list[str]) -> None:
         "systems/ai/fossil_tech_predictive_ai.gd",
         "systems/ai/apex_coordination_ai.gd",
         "systems/ai/composure_tracker.gd",
+        "systems/ai/tyrant_crown_meta_ai.gd",
+        "systems/ai/crown_legacy_tracker.gd",
         "data/chapter_07.tres",
         "data/chapter_07_post.tres",
         "data/chapter_08.tres",
         "data/chapter_08_post.tres",
         "data/chapter_09.tres",
         "data/chapter_09_post.tres",
+        "data/chapter_10.tres",
+        "data/chapter_10_post.tres",
         "tests/test_ai_contracts.gd",
     ]
     for relative in required:
@@ -98,7 +104,7 @@ def main() -> int:
         for message in failures:
             print(f"ERROR: {message}", file=sys.stderr)
         return 1
-    print("Static validation passed: metadata, resources, SVGs and v1.1 files.")
+    print("Static validation passed: metadata, resources, SVGs and v1.2 files.")
     return 0
 
 

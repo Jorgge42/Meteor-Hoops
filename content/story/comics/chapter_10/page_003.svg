@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+<defs><linearGradient id="bg" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#05252a"/><stop offset="0.55" stop-color="#090d18"/><stop offset="1" stop-color="#31070a"/></linearGradient></defs>
+<rect width="1280" height="720" fill="url(#bg)"/>
+<path d="M0 570Q280 400 550 565T1280 530V720H0Z" fill="#07343b" opacity="0.86"/>
+<g fill="#2dd4bf"><circle cx="285" cy="392" r="58"/><circle cx="420" cy="354" r="64"/><circle cx="560" cy="400" r="60"/></g>
+<g fill="#0f172a"><path d="M245 450L270 535H300L325 450Z"/><path d="M375 417L398 528H440L465 417Z"/><path d="M520 459L540 540H575L600 459Z"/></g>
+<path d="M840 250L915 360L875 520H805L765 360Z" fill="#6d1218" stroke="#ff5b43" stroke-width="6"/>
+<circle cx="840" cy="213" r="50" fill="#b32724"/>
+<path d="M798 195L819 146L840 195L861 146L882 195V220H798Z" fill="#ff6247"/>
+<path d="M620 120L670 192L651 280H589L570 192Z" fill="#38c7b4" opacity="0.18"/>
+<text x="70" y="82" font-family="sans-serif" font-size="28" fill="#73f2df">CAPÍTULO 10 • O METEORO</text>
+<text x="70" y="132" font-family="sans-serif" font-size="19" fill="#9ba5b7">PÁGINA 3</text>
+<text x="70" y="220" font-family="sans-serif" font-size="38" font-weight="700" fill="#f8fafc">“ENTÃO NÃO VAMOS REPETIR O PASSO.”</text>
+<text x="70" y="276" font-family="sans-serif" font-size="27" fill="#b9fff4">Kiro olha para Luma. Bato fecha o punho.</text>
+<text x="70" y="318" font-family="sans-serif" font-size="27" fill="#b9fff4">Dez jogos ensinaram dez maneiras de mudar.</text>
+<text x="70" y="634" font-family="sans-serif" font-size="31" font-weight="700" fill="#ffffff">QUEBREM OS DECRETOS. PARTAM A COROA.</text>
+<text x="1160" y="682" text-anchor="end" font-family="sans-serif" font-size="23" fill="#73f2df">10 • 03</text>
+</svg>

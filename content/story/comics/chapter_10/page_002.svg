@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#09070d"/><stop offset="1" stop-color="#260609"/></linearGradient></defs>
+<rect width="1280" height="720" fill="url(#bg)"/>
+<path d="M640 90L730 205L698 570H582L550 205Z" fill="#3e0d12" stroke="#ff523d" stroke-width="7"/>
+<circle cx="640" cy="196" r="62" fill="#7f1d1d"/><path d="M590 176L615 118L640 176L665 118L690 176V207H590Z" fill="#ff5138"/>
+<g font-family="sans-serif" text-anchor="middle"><circle cx="245" cy="330" r="78" fill="#171b24" stroke="#f97316" stroke-width="6"/><text x="245" y="322" font-size="18" fill="#fdba74">TRONO</text><text x="245" y="350" font-size="18" fill="#fdba74">DE FERRO</text><circle cx="465" cy="510" r="78" fill="#171b24" stroke="#8b5cf6" stroke-width="6"/><text x="465" y="502" font-size="18" fill="#c4b5fd">CAÇADA</text><text x="465" y="530" font-size="18" fill="#c4b5fd">NOTURNA</text><circle cx="815" cy="510" r="78" fill="#171b24" stroke="#2dd4bf" stroke-width="6"/><text x="815" y="502" font-size="18" fill="#99f6e4">DESTINO</text><text x="815" y="530" font-size="18" fill="#99f6e4">ESCRITO</text><circle cx="1035" cy="330" r="78" fill="#171b24" stroke="#eab308" stroke-width="6"/><text x="1035" y="322" font-size="18" fill="#fde047">COMANDO</text><text x="1035" y="350" font-size="18" fill="#fde047">REAL</text></g>
+<text x="70" y="78" font-family="sans-serif" font-size="28" fill="#ff8067">CAPÍTULO 10 • O METEORO</text>
+<text x="70" y="128" font-family="sans-serif" font-size="19" fill="#9ba5b7">PÁGINA 2</text>
+<text x="640" y="645" text-anchor="middle" font-family="sans-serif" font-size="27" fill="#f8fafc">“EU ESTUDEI CADA PASSO DA SUA ROTA.” — DRAX</text>
+<text x="1160" y="682" text-anchor="end" font-family="sans-serif" font-size="23" fill="#ff8067">10 • 02</text>
+</svg>

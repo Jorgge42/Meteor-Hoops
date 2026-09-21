@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#240507"/><stop offset="1" stop-color="#05070d"/></linearGradient><radialGradient id="sun"><stop stop-color="#ff5a36"/><stop offset="1" stop-color="#7f1018" stop-opacity="0"/></radialGradient></defs>
+<rect width="1280" height="720" fill="url(#bg)"/>
+<circle cx="1030" cy="160" r="300" fill="url(#sun)" opacity="0.8"/>
+<path d="M0 610L140 510L250 566L390 425L535 560L690 390L840 548L1010 360L1170 530L1280 470V720H0Z" fill="#37090d"/>
+<path d="M885 415L935 315L985 415L1035 285L1085 415L1135 315L1185 415V475H885Z" fill="#f33c2f" opacity="0.82"/>
+<path d="M930 480H1140L1115 655H955Z" fill="#180507" stroke="#ff7657" stroke-width="7"/>
+<g fill="#ffd0bd"><circle cx="970" cy="526" r="14"/><circle cx="1018" cy="526" r="14"/><circle cx="1066" cy="526" r="14"/><circle cx="1114" cy="526" r="14"/></g>
+<text x="74" y="92" font-family="sans-serif" font-size="28" fill="#ff8067">CAPÍTULO 10 • O METEORO</text>
+<text x="74" y="142" font-family="sans-serif" font-size="19" fill="#9ba5b7">PÁGINA 1</text>
+<text x="74" y="235" font-family="sans-serif" font-size="42" font-weight="700" fill="#fff7f3">A ÚLTIMA QUADRA TEM UM TRONO.</text>
+<text x="74" y="326" font-family="sans-serif" font-size="26" fill="#e5e7eb">A arena da Tyrant Crown foi construída para uma única certeza:</text>
+<text x="74" y="370" font-family="sans-serif" font-size="26" fill="#e5e7eb">Drax sempre sabe qual arma o adversário usará em seguida.</text>
+<text x="74" y="414" font-family="sans-serif" font-size="26" fill="#ffb19e">Hoje, a Vale Fóssil veio provar que certeza também quebra.</text>
+<text x="1160" y="670" text-anchor="end" font-family="sans-serif" font-size="23" fill="#ff8067">10 • 01</text>
+</svg>

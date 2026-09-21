@@ -1,4 +1,4 @@
-# Estratégia de IA — v1.1
+# Estratégia de IA — v1.2
 
 ## Princípio
 
@@ -15,6 +15,8 @@ A IA de Meteor Hoops deve criar decisões legíveis e contrajogo. O objetivo nã
 | Valor esperado | Comparação ofensiva entre passe, arremesso e finalização observáveis |
 | Coordenação | Plano compartilhado que reposiciona os três atletas da Apex |
 | Contrajogo | Compostura por variedade, posse segura e parada defensiva |
+| Metaestratégia | Decreto da Tyrant Crown escolhido pela combinação das leituras anteriores |
+| Legado | Quebra verificável de três decretos distintos abre uma janela vulnerável |
 | Execução | Alvos de movimento, contenção, negação, trap e contra-ataque |
 | Direção | Dicas contextuais e mudanças limitadas de pesos estratégicos |
 | Explicação | Tendência detectada, takeover e mensagem de contrajogada no HUD |
@@ -37,6 +39,11 @@ A IA de Meteor Hoops deve criar decisões legíveis e contrajogo. O objetivo nã
 - Rugido não modifica velocidade, atributos, chance de acerto ou física da bola.
 - A reação da Apex respeita piso de **0,34 s**, inclusive durante o Rugido.
 - A Compostura recompensa ações distintas e pune repetição dentro da janela recente.
+- Todo decreto da Tyrant Crown e sua condição de quebra aparecem no HUD.
+- Destino Escrito revela a previsão antes de avaliar a decisão real.
+- A reação da Coroa respeita piso de **0,32 s** e não antecipa input futuro.
+- Coroa Partida exige três decretos distintos; repetição do mesmo decreto não progride o ciclo.
+- A meta-IA pode escolher posicionamento e ação, mas não altera acerto, atributos, alcance de captura ou física.
 
 Esses contratos são executados por `tests/test_ai_contracts.gd` no CI.
 
@@ -55,6 +62,7 @@ Modelos generativos continuam úteis no pipeline de produção — concept art, 
 5. Criar um técnico contextual que explique uma alternativa após duas falhas semelhantes, sem interromper a posse.
 6. Comparar previsões por formação e zona da quadra sem armazenar trajetórias individuais.
 7. Separar o avaliador de valor esperado em dados configuráveis por escola.
+8. Extrair os decretos para recursos configuráveis e permitir chefes táticos alternativos.
 
 ## Métricas de balanceamento
 
@@ -72,3 +80,6 @@ Modelos generativos continuam úteis no pipeline de produção — concept art, 
 - distribuição e duração dos planos da Apex;
 - ações que carregam o Rugido por posse;
 - sequência média de Compostura e Silêncios ativados por partida.
+- distribuição, duração e taxa de quebra dos decretos da Tyrant Crown;
+- tempo até a primeira Coroa Partida e conversão ofensiva durante a janela;
+- proporção de escolhas da meta-IA sustentadas por evidência suficiente.

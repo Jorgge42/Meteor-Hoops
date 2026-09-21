@@ -9,12 +9,13 @@ const PLAYER_NAMES := {
 
 static func default_profile() -> Dictionary:
     return {
-        "version": 8,
+        "version": 9,
         "intro_seen": false,
         "seen_story_chapters": [],
         "tutorial_completed": false,
         "training_unlocked": false,
         "highest_unlocked_match": 1,
+        "campaign_completed": false,
         "completed_matches": [],
         "best_scores": {},
         "last_result": {},
@@ -40,6 +41,12 @@ static func default_profile() -> Dictionary:
             "games": 0,
             "best_composure_chain": 0,
             "roars_silenced": 0
+        },
+        "final_profile": {
+            "version": 1,
+            "games": 0,
+            "best_edicts_broken": 0,
+            "crowns_shattered": 0
         },
         "last_progression": []
     }
@@ -80,11 +87,11 @@ static func load_profile() -> Dictionary:
         if not seen.has("chapter_01_pre"):
             seen.append("chapter_01_pre")
         profile["seen_story_chapters"] = seen
-    _ensure_v8(profile)
-    profile["version"] = 8
+    _ensure_v9(profile)
+    profile["version"] = 9
     return profile
 
-static func _ensure_v8(profile: Dictionary) -> void:
+static func _ensure_v9(profile: Dictionary) -> void:
     var progress: Dictionary = profile.get("player_progress", {})
     var defaults := _default_player_progress()
     for id in PLAYER_IDS:
@@ -165,6 +172,33 @@ static func _ensure_v8(profile: Dictionary) -> void:
             9999
         )
         profile["semifinal_profile"] = semifinal
+    var final_state = profile.get("final_profile", {})
+    if typeof(final_state) != TYPE_DICTIONARY:
+        profile["final_profile"] = {
+            "version": 1,
+            "games": 0,
+            "best_edicts_broken": 0,
+            "crowns_shattered": 0
+        }
+    else:
+        final_state["version"] = 1
+        final_state["games"] = clampi(int(final_state.get("games", 0)), 0, 9999)
+        final_state["best_edicts_broken"] = clampi(
+            int(final_state.get("best_edicts_broken", 0)),
+            0,
+            999
+        )
+        final_state["crowns_shattered"] = clampi(
+            int(final_state.get("crowns_shattered", 0)),
+            0,
+            9999
+        )
+        profile["final_profile"] = final_state
+    var completed: Array = profile.get("completed_matches", [])
+    profile["campaign_completed"] = (
+        bool(profile.get("campaign_completed", false))
+        or completed.has("match_10")
+    )
 
 static func save_profile(profile: Dictionary) -> bool:
     var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
@@ -215,6 +249,8 @@ static func complete_match(profile: Dictionary, match_id: String, match_number: 
     profile["completed_matches"] = completed
     if match_number == 1:
         profile["training_unlocked"] = true
+    if match_number == 10:
+        profile["campaign_completed"] = true
     profile["highest_unlocked_match"] = maxi(int(profile.get("highest_unlocked_match", 1)), mini(10, match_number + 1))
 
     var best_scores: Dictionary = profile.get("best_scores", {})
@@ -254,7 +290,7 @@ static func xp_to_next_level(xp: int) -> int:
     return maxi(0, xp_threshold_for_level(level + 1) - xp)
 
 static func _apply_progression(profile: Dictionary, stats: Dictionary, won: bool) -> void:
-    _ensure_v8(profile)
+    _ensure_v9(profile)
     var progress: Dictionary = profile.get("player_progress", {})
     var totals: Dictionary = profile.get("season_totals", {})
     var summary: Array = []
@@ -322,11 +358,14 @@ static func _apply_progression(profile: Dictionary, stats: Dictionary, won: bool
     var semifinal = stats.get("semifinal_profile", {})
     if typeof(semifinal) == TYPE_DICTIONARY and not semifinal.is_empty():
         profile["semifinal_profile"] = semifinal.duplicate(true)
-    _ensure_v8(profile)
-    profile["version"] = 8
+    var final_state = stats.get("final_profile", {})
+    if typeof(final_state) == TYPE_DICTIONARY and not final_state.is_empty():
+        profile["final_profile"] = final_state.duplicate(true)
+    _ensure_v9(profile)
+    profile["version"] = 9
 
 static func spend_upgrade_point(profile: Dictionary, player_id: String, stat: String) -> Dictionary:
-    _ensure_v8(profile)
+    _ensure_v9(profile)
     if not PLAYER_IDS.has(player_id):
         return profile
     if not ["speed", "shooting", "passing", "defense", "strength"].has(stat):
